@@ -72,7 +72,14 @@
   <h2>Вход</h2>
   <form id="login-form">
     <label for="iin">ИИН</label>
-    <input type="text" id="iin" name="iin" required minlength="12" maxlength="12" placeholder="Введите ИИН" />
+    <input type="text" 
+           id="iin" 
+           name="iin" 
+           required 
+           minlength="12" 
+           maxlength="12" 
+           pattern="\d{12}"
+           placeholder="Введите ИИН (12 цифр)" />
 
     <label for="password">Пароль</label>
     <input type="password" id="password" name="password" required placeholder="Введите пароль" />
@@ -84,16 +91,33 @@
 </div>
 
 <script>
+    document.getElementById('iin').addEventListener('input', function(e) {
+      // Remove any non-digit characters
+      this.value = this.value.replace(/\D/g, '');
+      
+      // Validate length
+      if (this.value.length !== 12) {
+        this.setCustomValidity('ИИН должен содержать ровно 12 цифр');
+      } else {
+        this.setCustomValidity('');
+      }
+    });
+
     document.getElementById("login-form").addEventListener("submit", async function (event) {
       event.preventDefault();
     
       const iin = document.getElementById("iin").value.trim();
       const password = document.getElementById("password").value;
+      const errorElement = document.getElementById("error-message");
     
-      document.getElementById("error-message").textContent = "";
+      // Validate IIN format
+      if (!/^\d{12}$/.test(iin)) {
+        errorElement.textContent = "ИИН должен содержать ровно 12 цифр";
+        return;
+      }
     
-      console.log("IIN:", iin);
-      console.log("Password:", password);
+      errorElement.textContent = "";
+    
       try {
         const response = await fetch("/login", {
           method: "POST",
@@ -104,34 +128,47 @@
         });
     
         if (!response.ok) {
-          const err = await response.text();
-          throw new Error(err || "Неверный ИИН или пароль");
+          const errorText = await response.text();
+          throw new Error(errorText || "Ошибка при входе в систему");
         }
-    
-        const data = await response.json();
-        console.log("Received token:", data.token);
-        const token = data.token;
-    
+
+        // Try to parse response as JSON
+        let data;
+        try {
+          data = await response.json();
+        } catch (e) {
+          throw new Error("Неверный формат ответа от сервера");
+        }
+        
+        if (!data.token) {
+          throw new Error("Токен не получен от сервера");
+        }
+
         // Обращаемся к /protected с токеном
         const protectedRes = await fetch("/protected", {
           method: "GET",
           headers: {
-            "Authorization": "Bearer " + token
+            "Authorization": `Bearer ${data.token}`
           }
         });
     
-        if (!protectedRes.redirected) {
-          const txt = await protectedRes.text();
-          throw new Error(txt || "Ошибка авторизации");
+        if (!protectedRes.ok && !protectedRes.redirected) {
+          const errorText = await protectedRes.text();
+          throw new Error(errorText || "Ошибка авторизации");
         }
     
         // Если был редирект, перенаправим пользователя
-        window.location.href = protectedRes.url;
+        if (protectedRes.redirected) {
+          window.location.href = protectedRes.url;
+        } else {
+          window.location.href = "/";
+        }
     
       } catch (error) {
-        document.getElementById("error-message").textContent = error.message;
+        console.error("Login error:", error);
+        errorElement.textContent = error.message || "Произошла ошибка при входе в систему";
       }
     });
-    </script>    
+</script>    
 </body>
 </html>

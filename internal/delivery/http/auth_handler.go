@@ -41,18 +41,44 @@ type loginRequest struct {
 	Password string `json:"password"`
 }
 
+type loginResponse struct {
+	Token   string `json:"token,omitempty"`
+	Error   string `json:"error,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req loginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(loginResponse{Error: "Invalid request format"})
 		return
 	}
-	log.Printf("Received iin: %s, password: %s\n", req.IIN, req.Password)
+
+	// Set JSON content type for all responses
+	w.Header().Set("Content-Type", "application/json")
+
 	if err := h.authService.Login(req.IIN, req.Password, w); err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(loginResponse{Error: err.Error()})
 		return
 	}
+
+	// Get the token from cookie
+	cookie, err := r.Cookie("token")
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(loginResponse{Error: "Token not found"})
+		return
+	}
+
+	// Send success response
 	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(loginResponse{
+		Token:   cookie.Value,
+		Message: "Login successful",
+	})
 }
 
 func (h *AuthHandler) ProtectedRoute(w http.ResponseWriter, r *http.Request) {

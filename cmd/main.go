@@ -28,6 +28,7 @@ func main() {
 	defer db.Close()
 
 	password := "mypassword"
+	password1 := "mypassword1"
 
 	// Хешируем пароль
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -35,14 +36,30 @@ func main() {
 		log.Fatal("Error hashing password:", err)
 	}
 
+	hashedPassword1, err := bcrypt.GenerateFromPassword([]byte(password1), bcrypt.DefaultCost)
+	if err != nil {
+		log.Fatal("Error hashing password:", err)
+	}
+
 	// Печатаем хеш для проверки
 	fmt.Println("Hashed password:", string(hashedPassword))
+	fmt.Println("Hashed password:", string(hashedPassword1))
 
 	// Вставляем пользователя с хешированным паролем в таблицу users
 	query := `INSERT INTO users (iin, password_hash, full_name, role) 
 	          VALUES ($1, $2, $3, $4)`
 
 	_, err = db.Exec(query, "123456789012", string(hashedPassword), "Иван Иванов", "admin")
+	if err != nil {
+		log.Fatal("Error inserting user into database:", err)
+	}
+
+	fmt.Println("User successfully inserted into the database!")
+
+	query1 := `INSERT INTO users (iin, password_hash, full_name, role) 
+	          VALUES ($1, $2, $3, $4)`
+
+	_, err = db.Exec(query1, "040831650398", string(hashedPassword1), "Марина Цветаева", "doctor")
 	if err != nil {
 		log.Fatal("Error inserting user into database:", err)
 	}
