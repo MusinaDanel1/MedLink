@@ -1,4 +1,4 @@
-FROM golang:1.20 as builder
+FROM golang:1.23 as builder
 WORKDIR /app
 
 # Копируем файлы проекта
@@ -15,6 +15,8 @@ WORKDIR /root/
 
 # Копируем собранное приложение
 COPY --from=builder /app/telemed .
+
+COPY --from=builder /app/static /root/static
 
 EXPOSE 8080
 

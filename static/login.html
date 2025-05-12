@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Вход в систему</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f7f9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .login-container {
+      background: white;
+      padding: 40px 30px;
+      border-radius: 10px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 400px;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 20px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+
+    .error {
+      color: red;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      background: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-container">
+  <h2>Вход</h2>
+  <form id="login-form">
+    <label for="iin">ИИН</label>
+    <input type="text" id="iin" name="iin" required minlength="12" maxlength="12" placeholder="Введите ИИН" />
+
+    <label for="password">Пароль</label>
+    <input type="password" id="password" name="password" required placeholder="Введите пароль" />
+
+    <div id="error-message" class="error"></div>
+
+    <button type="submit">Войти</button>
+  </form>
+</div>
+
+<script>
+    document.getElementById("login-form").addEventListener("submit", async function (event) {
+      event.preventDefault();
+    
+      const iin = document.getElementById("iin").value.trim();
+      const password = document.getElementById("password").value;
+    
+      document.getElementById("error-message").textContent = "";
+    
+      console.log("IIN:", iin);
+      console.log("Password:", password);
+      try {
+        const response = await fetch("/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ iin, password })
+        });
+    
+        if (!response.ok) {
+          const err = await response.text();
+          throw new Error(err || "Неверный ИИН или пароль");
+        }
+    
+        const data = await response.json();
+        console.log("Received token:", data.token);
+        const token = data.token;
+    
+        // Обращаемся к /protected с токеном
+        const protectedRes = await fetch("/protected", {
+          method: "GET",
+          headers: {
+            "Authorization": "Bearer " + token
+          }
+        });
+    
+        if (!protectedRes.redirected) {
+          const txt = await protectedRes.text();
+          throw new Error(txt || "Ошибка авторизации");
+        }
+    
+        // Если был редирект, перенаправим пользователя
+        window.location.href = protectedRes.url;
+    
+      } catch (error) {
+        document.getElementById("error-message").textContent = error.message;
+      }
+    });
+    </script>    
+</body>
+</html>

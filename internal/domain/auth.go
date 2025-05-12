@@ -1,5 +1,7 @@
 package domain
 
+import "net/http"
+
 type User struct {
 	ID       int64
 	IIN      string
@@ -13,5 +15,5 @@ type AuthRepository interface {
 }
 
 type AuthService interface {
-	Login(iin, password string) (string, error)
+	Login(iin, password string, w http.ResponseWriter) error
 }

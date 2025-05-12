@@ -1,6 +1,10 @@
+-- Создание базы данных
 CREATE DATABASE telemed;
-\c telemed;
 
+-- Соединение с базой данных telemed (это не работает в скрипте, нужно подключиться через psql)
+-- \c telemed
+
+-- Создание таблицы users
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     iin VARCHAR(12) UNIQUE NOT NULL,
@@ -10,14 +14,16 @@ CREATE TABLE users (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Создание таблицы patients
 CREATE TABLE patients (
     id SERIAL PRIMARY KEY,
     full_name TEXT NOT NULL,
-    phone TEXT NOT NOT NULL,
-    whatsapp_id  TEXT UNIQUE NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMES
+    phone TEXT NOT NULL,
+    telegram_id TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Создание таблицы appointments
 CREATE TABLE appointments (
     id SERIAL PRIMARY KEY,
     patient_id INT REFERENCES patients(id) ON DELETE CASCADE,
@@ -30,6 +36,7 @@ CREATE TABLE appointments (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Создание таблицы pdf_files
 CREATE TABLE pdf_files (
     id SERIAL PRIMARY KEY,
     appointment_id INT REFERENCES appointments(id) ON DELETE CASCADE,
@@ -37,6 +44,7 @@ CREATE TABLE pdf_files (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Создание таблицы video_sessions
 CREATE TABLE video_sessions (
     id SERIAL PRIMARY KEY,
     appointment_id INT REFERENCES appointments(id) ON DELETE CASCADE,
@@ -46,6 +54,7 @@ CREATE TABLE video_sessions (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Создание таблицы messages
 CREATE TABLE messages (
     id SERIAL PRIMARY KEY,
     patient_id INT REFERENCES patients(id) ON DELETE CASCADE,
