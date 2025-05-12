@@ -13,7 +13,7 @@ import (
 
 	http1 "telemed/internal/delivery/http"
 	"telemed/internal/repository/postgres"
-	"telemed/internal/usecase/auth"
+	"telemed/internal/usecase"
 )
 
 func main() {
@@ -67,7 +67,7 @@ func main() {
 	fmt.Println("User successfully inserted into the database!")
 
 	authRepo := postgres.NewAuthRepository(db)
-	authService := auth.NewService(authRepo)
+	authService := usecase.NewAuthService(authRepo)
 	authHandler := http1.NewAuthHandler(authService)
 
 	mux := http.NewServeMux()

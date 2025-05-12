@@ -1,3 +1,0 @@
-package doctor
-
-//doctor service

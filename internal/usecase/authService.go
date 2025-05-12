@@ -1,4 +1,4 @@
-package auth
+package usecase
 
 import (
 	"errors"
@@ -13,21 +13,29 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type service struct {
+type AuthService struct {
 	repo domain.AuthRepository
 }
 
-func NewService(r domain.AuthRepository) domain.AuthService {
-	return &service{repo: r}
+func NewAuthService(r domain.AuthRepository) domain.AuthService {
+	return &AuthService{repo: r}
 }
 
-func (s *service) Login(iin, password string, w http.ResponseWriter) error {
+func (s *AuthService) Login(iin, password string, w http.ResponseWriter) error {
 	user, err := s.repo.GetByIIN(iin)
 	if err != nil {
 		return err
 	}
 	if user == nil {
 		return errors.New("user not found")
+	}
+
+	// Check if user is blocked
+	if user.IsBlocked {
+		if user.BlockedReason != "" {
+			return fmt.Errorf("account is blocked: %s", user.BlockedReason)
+		}
+		return errors.New("account is blocked")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {

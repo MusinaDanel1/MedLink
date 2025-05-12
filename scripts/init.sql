@@ -11,6 +11,8 @@ CREATE TABLE users (
     password_hash TEXT NOT NULL,
     full_name TEXT NOT NULL,
     role VARCHAR(50) NOT NULL DEFAULT 'user',
+    is_blocked BOOLEAN NOT NULL DEFAULT FALSE,
+    blocked_reason TEXT,
     created_at TIMESTAMP DEFAULT NOW()
 );
 

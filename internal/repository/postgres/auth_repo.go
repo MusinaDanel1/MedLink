@@ -16,8 +16,17 @@ func NewAuthRepository(db *sql.DB) domain.AuthRepository {
 
 func (r *authRepo) GetByIIN(iin string) (*domain.User, error) {
 	var u domain.User
-	query := `SELECT id, iin, password_hash, full_name, role FROM users WHERE iin = $1`
-	err := r.db.QueryRow(query, iin).Scan(&u.ID, &u.IIN, &u.Password, &u.FullName, &u.Role)
+	query := `SELECT id, iin, password_hash, full_name, role, is_blocked, blocked_reason 
+             FROM users WHERE iin = $1`
+	err := r.db.QueryRow(query, iin).Scan(
+		&u.ID,
+		&u.IIN,
+		&u.Password,
+		&u.FullName,
+		&u.Role,
+		&u.IsBlocked,
+		&u.BlockedReason,
+	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil

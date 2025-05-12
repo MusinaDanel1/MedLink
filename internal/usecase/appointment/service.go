@@ -1,3 +1,0 @@
-package appointment
-
-//appointment service
