@@ -32,9 +32,6 @@ func (s *AuthService) Login(iin, password string, w http.ResponseWriter) error {
 
 	// Check if user is blocked
 	if user.IsBlocked {
-		if user.BlockedReason != "" {
-			return fmt.Errorf("account is blocked: %s", user.BlockedReason)
-		}
 		return errors.New("account is blocked")
 	}
 

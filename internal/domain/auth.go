@@ -3,13 +3,12 @@ package domain
 import "net/http"
 
 type User struct {
-	ID            int64
-	IIN           string
-	Password      string
-	FullName      string
-	Role          string
-	IsBlocked     bool
-	BlockedReason string
+	ID        int64
+	IIN       string
+	Password  string
+	FullName  string
+	Role      string
+	IsBlocked bool
 }
 
 type AuthRepository interface {

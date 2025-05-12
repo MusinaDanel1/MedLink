@@ -30,72 +30,81 @@ func main() {
 	password := "mypassword"
 	password1 := "mypassword1"
 
-	// Хешируем пароль
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		log.Fatal("Error hashing password:", err)
+		log.Fatal("Ошибка при хешировании пароля:", err)
 	}
-
 	hashedPassword1, err := bcrypt.GenerateFromPassword([]byte(password1), bcrypt.DefaultCost)
 	if err != nil {
-		log.Fatal("Error hashing password:", err)
+		log.Fatal("Ошибка при хешировании пароля:", err)
 	}
 
-	// Печатаем хеш для проверки
-	fmt.Println("Hashed password:", string(hashedPassword))
-	fmt.Println("Hashed password:", string(hashedPassword1))
-
-	// Вставляем пользователя с хешированным паролем в таблицу users
 	query := `INSERT INTO users (iin, password_hash, full_name, role) 
-	          VALUES ($1, $2, $3, $4)`
+	          VALUES ($1, $2, $3, $4)
+	          ON CONFLICT (iin) DO NOTHING`
 
 	_, err = db.Exec(query, "123456789012", string(hashedPassword), "Иван Иванов", "admin")
 	if err != nil {
-		log.Fatal("Error inserting user into database:", err)
+		log.Fatal("Ошибка при вставке админа:", err)
 	}
-
-	fmt.Println("User successfully inserted into the database!")
-
-	query1 := `INSERT INTO users (iin, password_hash, full_name, role) 
-	          VALUES ($1, $2, $3, $4)`
-
-	_, err = db.Exec(query1, "040831650398", string(hashedPassword1), "Марина Цветаева", "doctor")
+	_, err = db.Exec(query, "040831650398", string(hashedPassword1), "Марина Цветаева", "doctor")
 	if err != nil {
-		log.Fatal("Error inserting user into database:", err)
+		log.Fatal("Ошибка при вставке врача:", err)
 	}
 
-	fmt.Println("User successfully inserted into the database!")
+	fmt.Println("Админ и врач успешно добавлены в базу данных!")
 
+	// Initialize repositories
 	authRepo := postgres.NewAuthRepository(db)
+	adminRepo := postgres.NewAdminRepository(db)
+
+	// Initialize services
 	authService := usecase.NewAuthService(authRepo)
+	adminService := usecase.NewAdminService(adminRepo)
+
+	// Initialize handlers
 	authHandler := http1.NewAuthHandler(authService)
+	adminHandler := http1.NewAdminHandler(adminService)
 
 	mux := http.NewServeMux()
 
+	// Auth routes
 	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			log.Println("THIS IS SHOW LOGIN FORM")
 			authHandler.ShowLoginForm(w, r)
 			return
 		}
 		if r.Method == http.MethodPost {
-			log.Println("THIS IS SHOW LOGIN")
 			authHandler.Login(w, r)
 			return
 		}
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 	})
 
+	// Protected routes
 	protectedHandler := http1.AuthMiddleware(http.HandlerFunc(authHandler.ProtectedRoute))
 	mux.Handle("/protected", protectedHandler)
-	mux.Handle("/admin-dashboard", http1.AuthMiddleware(http.HandlerFunc(authHandler.AdminDashboard)))
+
+	// Admin routes
+	adminMiddleware := http1.AuthMiddleware
+	mux.Handle("/admin-dashboard", adminMiddleware(http.HandlerFunc(authHandler.AdminDashboard)))
+	mux.Handle("/admin/register", adminMiddleware(http.HandlerFunc(adminHandler.RegisterUser)))
+	mux.Handle("/admin/block", adminMiddleware(http.HandlerFunc(adminHandler.BlockUser)))
+	mux.Handle("/admin/unblock", adminMiddleware(http.HandlerFunc(adminHandler.UnblockUser)))
+	mux.Handle("/admin/delete", adminMiddleware(http.HandlerFunc(adminHandler.DeleteUser)))
+
+	// Doctor routes
 	mux.Handle("/doctor-dashboard", http1.AuthMiddleware(http.HandlerFunc(authHandler.DoctorDashboard)))
+
+	// Static files
+	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
 	port := os.Getenv("APP_PORT")
 	if port == "" {
 		port = "8080"
 	}
-	log.Println("Server starting at localhost " + port)
+
+	log.Printf("Server starting at http://localhost:%s", port)
 	if err := http.ListenAndServe(":"+port, mux); err != nil {
 		log.Fatal(err)
 	}

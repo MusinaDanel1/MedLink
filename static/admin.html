@@ -1,21 +1,160 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <title>Панель администратора</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Админ-панель</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f9f9f9;
-      padding: 40px;
+      margin: 2em;
+      background: #f7f7f7;
     }
-    h1 {
-      color: #007BFF;
+
+    h2 {
+      margin-top: 40px;
+      color: #333;
+    }
+
+    form {
+      background: white;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      max-width: 500px;
+    }
+
+    label {
+      display: block;
+      margin: 10px 0 5px;
+    }
+
+    input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    button {
+      margin-top: 15px;
+      padding: 10px 20px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    .response {
+      margin-top: 10px;
+      color: green;
+    }
+
+    .error {
+      color: red;
     }
   </style>
 </head>
 <body>
-  <h1>Добро пожаловать, администратор!</h1>
-  <p>Здесь вы можете управлять системой.</p>
+
+  <h1>Админ-панель</h1>
+
+  <!-- Регистрация -->
+  <h2>Регистрация пользователя</h2>
+  <form id="register-form">
+    <label>ИИН:</label>
+    <input type="text" name="iin" required />
+    <label>Пароль:</label>
+    <input type="password" name="password" required />
+    <label>ФИО:</label>
+    <input type="text" name="full_name" required />
+    <label>Роль (admin / doctor):</label>
+    <input type="text" name="role" required />
+    <button type="submit">Зарегистрировать</button>
+    <div class="response" id="register-response"></div>
+  </form>
+
+  <!-- Блокировка -->
+  <h2>Блокировка пользователя</h2>
+  <form id="block-form">
+    <label>ИИН:</label>
+    <input type="text" name="iin" required />
+    <button type="submit">Заблокировать</button>
+    <div class="response" id="block-response"></div>
+  </form>
+
+  <!-- Разблокировка -->
+  <h2>Разблокировка пользователя</h2>
+  <form id="unblock-form">
+    <label>ИИН:</label>
+    <input type="text" name="iin" required />
+    <button type="submit">Разблокировать</button>
+    <div class="response" id="unblock-response"></div>
+  </form>
+
+  <!-- Удаление -->
+  <h2>Удаление пользователя</h2>
+  <form id="delete-form">
+    <label>ИИН:</label>
+    <input type="text" name="iin" required />
+    <button type="submit">Удалить</button>
+    <div class="response" id="delete-response"></div>
+  </form>
+
+  <script>
+    const token = localStorage.getItem("token"); // или document.cookie
+
+    function postJSON(url, data, responseId) {
+      fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + token
+        },
+        body: JSON.stringify(data)
+      })
+      .then(async res => {
+        const text = await res.text();
+        const el = document.getElementById(responseId);
+        el.className = "response";
+        el.textContent = res.ok ? text : "Ошибка: " + text;
+        if (!res.ok) el.classList.add("error");
+      })
+      .catch(err => {
+        document.getElementById(responseId).textContent = "Ошибка: " + err.message;
+        document.getElementById(responseId).classList.add("error");
+      });
+    }
+
+    document.getElementById("register-form").addEventListener("submit", function(e) {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(this).entries());
+      postJSON("/admin/register", data, "register-response");
+    });
+
+    document.getElementById("block-form").addEventListener("submit", function(e) {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(this).entries());
+      postJSON("/admin/block", data, "block-response");
+    });
+
+    document.getElementById("unblock-form").addEventListener("submit", function(e) {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(this).entries());
+      postJSON("/admin/unblock", data, "unblock-response");
+    });
+
+    document.getElementById("delete-form").addEventListener("submit", function(e) {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(this).entries());
+      postJSON("/admin/delete", data, "delete-response");
+    });
+  </script>
 </body>
 </html>

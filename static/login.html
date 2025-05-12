@@ -144,6 +144,9 @@
           throw new Error("Токен не получен от сервера");
         }
 
+        // Store token
+        localStorage.setItem('token', data.token);
+
         // Обращаемся к /protected с токеном
         const protectedRes = await fetch("/protected", {
           method: "GET",
@@ -159,6 +162,7 @@
     
         // Если был редирект, перенаправим пользователя
         if (protectedRes.redirected) {
+          console.log("Redirecting to:", protectedRes.url);
           window.location.href = protectedRes.url;
         } else {
           window.location.href = "/";

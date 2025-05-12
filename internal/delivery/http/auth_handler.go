@@ -114,7 +114,21 @@ func (h *AuthHandler) AdminDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	htmlPath := filepath.Join("static", "admin.html")
+	execPath, err := os.Getwd()
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	htmlPath := filepath.Join(execPath, "static", "admin.html")
+	log.Printf("Looking for admin.html at: %s", htmlPath)
+
+	if _, err := os.Stat(htmlPath); os.IsNotExist(err) {
+		log.Printf("Admin file not found at: %s", htmlPath)
+		http.Error(w, "Admin page not found", http.StatusNotFound)
+		return
+	}
+
 	http.ServeFile(w, r, htmlPath)
 }
 
