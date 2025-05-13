@@ -32,6 +32,12 @@ type response struct {
 	Error   string `json:"error,omitempty"`
 }
 
+type userListResponse struct {
+	Success bool           `json:"success"`
+	Users   []*domain.User `json:"users,omitempty"`
+	Error   string         `json:"error,omitempty"`
+}
+
 func (h *AdminHandler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -167,4 +173,35 @@ func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response{Success: true, Message: "User deleted successfully"})
+}
+
+func (h *AdminHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Check if user is admin
+	role, ok := r.Context().Value(RoleKey).(string)
+	if !ok || role != "admin" {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	users, err := h.adminService.GetAllUsers()
+	if err != nil {
+		log.Printf("Failed to get users: %v", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(userListResponse{Success: false, Error: err.Error()})
+		return
+	}
+
+	// Don't send password hashes to the frontend
+	for _, user := range users {
+		user.Password = ""
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(userListResponse{Success: true, Users: users})
 }

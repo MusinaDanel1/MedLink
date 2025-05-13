@@ -92,6 +92,7 @@ func main() {
 	mux.Handle("/admin/block", adminMiddleware(http.HandlerFunc(adminHandler.BlockUser)))
 	mux.Handle("/admin/unblock", adminMiddleware(http.HandlerFunc(adminHandler.UnblockUser)))
 	mux.Handle("/admin/delete", adminMiddleware(http.HandlerFunc(adminHandler.DeleteUser)))
+	mux.Handle("/admin/users", adminMiddleware(http.HandlerFunc(adminHandler.GetAllUsers)))
 
 	// Doctor routes
 	mux.Handle("/doctor-dashboard", http1.AuthMiddleware(http.HandlerFunc(authHandler.DoctorDashboard)))

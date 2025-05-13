@@ -66,3 +66,36 @@ func (r *adminRepo) DeleteUser(iin string) error {
 	}
 	return nil
 }
+
+func (r *adminRepo) GetAllUsers() ([]*domain.User, error) {
+	query := `SELECT id, iin, password_hash, full_name, role, is_blocked FROM users ORDER BY id`
+
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []*domain.User
+	for rows.Next() {
+		user := &domain.User{}
+		err := rows.Scan(
+			&user.ID,
+			&user.IIN,
+			&user.Password,
+			&user.FullName,
+			&user.Role,
+			&user.IsBlocked,
+		)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}

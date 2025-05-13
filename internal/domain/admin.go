@@ -5,6 +5,7 @@ type AdminRepository interface {
 	BlockUser(iin string) error
 	UnblockUser(iin string) error
 	DeleteUser(iin string) error
+	GetAllUsers() ([]*User, error)
 }
 
 type AdminService interface {
@@ -12,4 +13,5 @@ type AdminService interface {
 	BlockUser(iin string) error
 	UnblockUser(iin string) error
 	DeleteUser(iin string) error
+	GetAllUsers() ([]*User, error)
 }

@@ -2,37 +2,62 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Админ-панель</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       margin: 2em;
-      background: #f7f7f7;
+      background: #f4f6f8;
     }
 
-    h2 {
-      margin-top: 40px;
-      color: #333;
+    h1 {
+      margin-bottom: 1em;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .tab {
+      padding: 10px 20px;
+      background-color: #e0e0e0;
+      border-radius: 8px 8px 0 0;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .tab.active {
+      background-color: #007BFF;
+      color: white;
+    }
+
+    .tab-content {
+      display: none;
+      background: white;
+      padding: 20px;
+      border-radius: 0 0 8px 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .tab-content.active {
+      display: block;
     }
 
     form {
-      background: white;
-      padding: 20px;
-      margin-bottom: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
       max-width: 500px;
     }
 
     label {
       display: block;
-      margin: 10px 0 5px;
+      margin-top: 10px;
     }
 
     input {
       width: 100%;
       padding: 8px;
+      margin-top: 5px;
       border: 1px solid #ccc;
       border-radius: 4px;
     }
@@ -47,10 +72,6 @@
       cursor: pointer;
     }
 
-    button:hover {
-      background-color: #0056b3;
-    }
-
     .response {
       margin-top: 10px;
       color: green;
@@ -59,14 +80,37 @@
     .error {
       color: red;
     }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1em;
+    }
+
+    th, td {
+      padding: 10px;
+      border: 1px solid #ddd;
+    }
+
+    th {
+      background: #007BFF;
+      color: white;
+    }
   </style>
 </head>
 <body>
 
-  <h1>Админ-панель</h1>
+<h1>Админ-панель</h1>
 
-  <!-- Регистрация -->
-  <h2>Регистрация пользователя</h2>
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('register')">➕ Добавить</div>
+  <div class="tab" onclick="switchTab('block')">🚫 Блокировать</div>
+  <div class="tab" onclick="switchTab('unblock')">✅ Разблокировать</div>
+  <div class="tab" onclick="switchTab('delete')">🗑 Удалить</div>
+  <div class="tab" onclick="switchTab('users')">📋 Список</div>
+</div>
+
+<div id="register" class="tab-content active">
   <form id="register-form">
     <label>ИИН:</label>
     <input type="text" name="iin" required />
@@ -79,82 +123,157 @@
     <button type="submit">Зарегистрировать</button>
     <div class="response" id="register-response"></div>
   </form>
+</div>
 
-  <!-- Блокировка -->
-  <h2>Блокировка пользователя</h2>
+<div id="block" class="tab-content">
   <form id="block-form">
     <label>ИИН:</label>
     <input type="text" name="iin" required />
     <button type="submit">Заблокировать</button>
     <div class="response" id="block-response"></div>
   </form>
+</div>
 
-  <!-- Разблокировка -->
-  <h2>Разблокировка пользователя</h2>
+<div id="unblock" class="tab-content">
   <form id="unblock-form">
     <label>ИИН:</label>
     <input type="text" name="iin" required />
     <button type="submit">Разблокировать</button>
     <div class="response" id="unblock-response"></div>
   </form>
+</div>
 
-  <!-- Удаление -->
-  <h2>Удаление пользователя</h2>
+<div id="delete" class="tab-content">
   <form id="delete-form">
     <label>ИИН:</label>
     <input type="text" name="iin" required />
     <button type="submit">Удалить</button>
     <div class="response" id="delete-response"></div>
   </form>
+</div>
 
-  <script>
-    const token = localStorage.getItem("token"); // или document.cookie
+<div id="users" class="tab-content">
+  <button onclick="fetchUsers()">🔄 Обновить список</button>
+  <table id="user-table">
+    <thead>
+      <tr>
+        <th>ИИН</th>
+        <th>ФИО</th>
+        <th>Роль</th>
+        <th>Статус</th>
+      </tr>
+    </thead>
+    <tbody id="user-table-body"></tbody>
+  </table>
+</div>
 
-    function postJSON(url, data, responseId) {
-      fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + token
-        },
-        body: JSON.stringify(data)
-      })
-      .then(async res => {
-        const text = await res.text();
-        const el = document.getElementById(responseId);
-        el.className = "response";
-        el.textContent = res.ok ? text : "Ошибка: " + text;
-        if (!res.ok) el.classList.add("error");
-      })
-      .catch(err => {
-        document.getElementById(responseId).textContent = "Ошибка: " + err.message;
-        document.getElementById(responseId).classList.add("error");
+<script>
+  const token = localStorage.getItem("token");
+  if (!token) {
+    alert("Вы не авторизованы. Перенаправление на страницу входа...");
+    window.location.href = "/login";
+  }
+
+  function switchTab(id) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelector(`.tab[onclick="switchTab('${id}')"]`).classList.add('active');
+    document.getElementById(id).classList.add('active');
+    if (id === 'users') fetchUsers();
+  }
+
+  function postJSON(url, data, responseId) {
+    fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + token
+      },
+      body: JSON.stringify(data)
+    })
+    .then(async res => {
+      const text = await res.text();
+      const el = document.getElementById(responseId);
+      el.className = "response";
+      el.textContent = res.ok ? text : "Ошибка: " + text;
+      if (!res.ok) el.classList.add("error");
+    })
+    .catch(err => {
+      const el = document.getElementById(responseId);
+      el.textContent = "Ошибка: " + err.message;
+      el.className = "response error";
+    });
+  }
+
+  function fetchUsers() {
+    fetch("/admin/users", {
+      method: "GET",
+      headers: {
+        "Authorization": "Bearer " + token
+      }
+    })
+    .then(res => {
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      return res.json();
+    })
+    .then(response => {
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to fetch users');
+      }
+      const tbody = document.getElementById("user-table-body");
+      tbody.innerHTML = "";
+      response.users.forEach(user => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${user.iin}</td>
+          <td>${user.full_name}</td>
+          <td>${user.role}</td>
+          <td style="color: ${user.is_blocked ? 'red' : 'green'};">
+            ${user.is_blocked ? 'Заблокирован' : 'Активен'}
+          </td>
+        `;
+        tbody.appendChild(row);
       });
-    }
-
-    document.getElementById("register-form").addEventListener("submit", function(e) {
-      e.preventDefault();
-      const data = Object.fromEntries(new FormData(this).entries());
-      postJSON("/admin/register", data, "register-response");
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      const tbody = document.getElementById("user-table-body");
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="4" style="color: red; text-align: center;">
+            Ошибка при загрузке пользователей: ${error.message}
+          </td>
+        </tr>
+      `;
     });
+  }
 
-    document.getElementById("block-form").addEventListener("submit", function(e) {
-      e.preventDefault();
-      const data = Object.fromEntries(new FormData(this).entries());
-      postJSON("/admin/block", data, "block-response");
-    });
+  document.getElementById("register-form").addEventListener("submit", function(e) {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(this).entries());
+    postJSON("/admin/register", data, "register-response");
+  });
 
-    document.getElementById("unblock-form").addEventListener("submit", function(e) {
-      e.preventDefault();
-      const data = Object.fromEntries(new FormData(this).entries());
-      postJSON("/admin/unblock", data, "unblock-response");
-    });
+  document.getElementById("block-form").addEventListener("submit", function(e) {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(this).entries());
+    postJSON("/admin/block", data, "block-response");
+  });
 
-    document.getElementById("delete-form").addEventListener("submit", function(e) {
-      e.preventDefault();
-      const data = Object.fromEntries(new FormData(this).entries());
-      postJSON("/admin/delete", data, "delete-response");
-    });
-  </script>
+  document.getElementById("unblock-form").addEventListener("submit", function(e) {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(this).entries());
+    postJSON("/admin/unblock", data, "unblock-response");
+  });
+
+  document.getElementById("delete-form").addEventListener("submit", function(e) {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(this).entries());
+    postJSON("/admin/delete", data, "delete-response");
+  });
+</script>
+
 </body>
 </html>

@@ -38,3 +38,7 @@ func (s *AdminService) UnblockUser(iin string) error {
 func (s *AdminService) DeleteUser(iin string) error {
 	return s.repo.DeleteUser(iin)
 }
+
+func (s *AdminService) GetAllUsers() ([]*domain.User, error) {
+	return s.repo.GetAllUsers()
+}
