@@ -1,3 +1,0 @@
-package whatsapp
-
-//whatsapp bot

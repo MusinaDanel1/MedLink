@@ -16,13 +16,28 @@ CREATE TABLE users (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE specializations (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) UNIQUE NOT NULL
+);
+CREATE TABLE doctors (
+    id SERIAL PRIMARY KEY,
+    full_name TEXT NOT NULL,
+    specialization_id INT REFERENCES specializations(id) 
+);
 -- Создание таблицы patients
 CREATE TABLE patients (
     id SERIAL PRIMARY KEY,
     full_name TEXT NOT NULL,
-    phone TEXT NOT NULL,
-    telegram_id TEXT UNIQUE NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    iin VARCHAR(12) UNIQUE NOT NULL,
+    telegram_id BIGINT UNIQUE NOT NULL
+);
+
+CREATE TABLE timeslots (
+    id SERIAL PRIMARY KEY,
+    doctor_id INT REFERENCES doctors(id),
+    appointment_time TIMESTAMP NOT NULL,
+    is_booked BOOLEAN DEFAULT FALSE
 );
 
 -- Создание таблицы appointments
@@ -30,11 +45,7 @@ CREATE TABLE appointments (
     id SERIAL PRIMARY KEY,
     patient_id INT REFERENCES patients(id) ON DELETE CASCADE,
     doctor_id INT REFERENCES users(id) ON DELETE CASCADE,
-    date_time TIMESTAMP NOT NULL,
-    status TEXT CHECK (status IN ('scheduled', 'completed', 'canceled')) DEFAULT 'scheduled',
-    symptoms TEXT,
-    diagnosis TEXT,
-    treatment TEXT,
+    timeslots_id INT REFERENCES timeslots(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -65,3 +76,22 @@ CREATE TABLE messages (
     attachment_url TEXT,
     sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+
+-- Специализации
+INSERT INTO specializations (name) VALUES 
+('Терапевт'), ('Педиатр'), ('Кардиолог');
+
+-- Врачи
+INSERT INTO doctors (full_name, specialization_id) VALUES 
+('Марина Цветаева', 2),
+('Айгуль Омарова', 1),
+('Жанат Мусаев', 3);
+
+-- Временные слоты
+INSERT INTO timeslots (doctor_id, appointment_time) VALUES 
+(1, '2025-05-15 10:00'),
+(1, '2025-05-15 11:00'),
+(2, '2025-05-16 09:30'),
+(3, '2025-05-17 14:00'),
+(3, '2025-05-17 15:00');

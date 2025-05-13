@@ -16,6 +16,9 @@ WORKDIR /root/
 # Копируем собранное приложение
 COPY --from=builder /app/telemed .
 
+# Копируем .env файл
+COPY .env .
+
 COPY --from=builder /app/static /root/static
 
 EXPOSE 8080

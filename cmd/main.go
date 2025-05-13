@@ -7,18 +7,26 @@ import (
 	"net/http"
 	"os"
 
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 
 	http1 "telemed/internal/delivery/http"
+	"telemed/internal/delivery/telegram"
 	"telemed/internal/repository/postgres"
 	"telemed/internal/usecase"
 )
 
 func main() {
-	if err := godotenv.Load(); err != nil {
-		log.Println("⚠️  .env файл не найден. Читаем переменные из окружения")
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("⚠️  .env файл не найден. Читаем переменные из окружения", err)
+	}
+
+	token := os.Getenv("TELEGRAM_BOT_TOKEN")
+	if token == "" {
+		log.Fatal("TELEGRAM_BOT_TOKEN не найден в .env")
 	}
 
 	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
@@ -54,19 +62,39 @@ func main() {
 
 	fmt.Println("Админ и врач успешно добавлены в базу данных!")
 
+	bot, err := tgbotapi.NewBotAPI(token)
+	if err != nil {
+		log.Fatal("Ошибка инициализации Telegram-бота: ", err)
+	}
+
+	bot.Debug = true
+
+	log.Printf("Запущен бот: %s", bot.Self.UserName)
+
 	// Initialize repositories
 	authRepo := postgres.NewAuthRepository(db)
 	adminRepo := postgres.NewAdminRepository(db)
-
+	patientRepo := postgres.NewPatientRepository(db)
 	// Initialize services
 	authService := usecase.NewAuthService(authRepo)
 	adminService := usecase.NewAdminService(adminRepo)
-
+	patientService := usecase.NewPatientService(patientRepo)
 	// Initialize handlers
 	authHandler := http1.NewAuthHandler(authService)
 	adminHandler := http1.NewAdminHandler(adminService)
+	botHandler := telegram.NewBotHandler(bot, patientService)
 
+	u := tgbotapi.NewUpdate(0)
+	u.Timeout = 60
+	updates := bot.GetUpdatesChan(u)
 	mux := http.NewServeMux()
+
+	// Run bot updates handling in a separate goroutine
+	go func() {
+		for update := range updates {
+			botHandler.HandleUpdate(update)
+		}
+	}()
 
 	// Auth routes
 	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
