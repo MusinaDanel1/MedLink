@@ -83,16 +83,16 @@ func (h *BotHandler) handleUserInput(chatID int64, msg string) {
 		h.sendMainMenu(chatID)
 
 	default:
-		h.bot.Send(tgbotapi.NewMessage(chatID, "Напишите /start для начала."))
+		h.bot.Send(tgbotapi.NewMessage(chatID, "Пожалуйста, выберите действие из меню или введите /start для начала."))
 	}
 }
 
 func (h *BotHandler) sendMainMenu(chatID int64) {
 	msg := tgbotapi.NewMessage(chatID, "Что вы хотите сделать?")
-	msg.ReplyMarkup = tgbotapi.NewReplyKeyboard(
-		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton("📅 Записаться к врачу"),
-			tgbotapi.NewKeyboardButton("💬 Консультация с ИИ"),
+	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("📅 Записаться к врачу", "book_appointment"),
+			tgbotapi.NewInlineKeyboardButtonData("💬 Консультация с ИИ", "ai_consultation"),
 		),
 	)
 	h.bot.Send(msg)
