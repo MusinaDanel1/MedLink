@@ -75,14 +75,19 @@ func main() {
 	authRepo := postgres.NewAuthRepository(db)
 	adminRepo := postgres.NewAdminRepository(db)
 	patientRepo := postgres.NewPatientRepository(db)
+	doctorRepo := postgres.NewDoctorRepository(db)
+	appointmentRepo := postgres.NewAppointmentRepository(db)
+
 	// Initialize services
 	authService := usecase.NewAuthService(authRepo)
 	adminService := usecase.NewAdminService(adminRepo)
 	patientService := usecase.NewPatientService(patientRepo)
+	doctorService := usecase.NewDoctorService(doctorRepo)
+	appointmentService := usecase.NewAppointmentService(appointmentRepo)
 	// Initialize handlers
 	authHandler := http1.NewAuthHandler(authService)
 	adminHandler := http1.NewAdminHandler(adminService)
-	botHandler := telegram.NewBotHandler(bot, patientService)
+	botHandler := telegram.NewBotHandler(bot, patientService, doctorService, appointmentService)
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60

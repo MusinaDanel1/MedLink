@@ -1,1 +1,2 @@
-.env.*
+.env
+internal/usecase/*.go

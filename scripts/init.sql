@@ -25,6 +25,11 @@ CREATE TABLE doctors (
     full_name TEXT NOT NULL,
     specialization_id INT REFERENCES specializations(id) 
 );
+CREATE TABLE services (
+    id SERIAL PRIMARY KEY,
+    doctor_id INT REFERENCES doctors(id),
+    name TEXT NOT NULL
+);
 -- Создание таблицы patients
 CREATE TABLE patients (
     id SERIAL PRIMARY KEY,
@@ -45,6 +50,7 @@ CREATE TABLE appointments (
     id SERIAL PRIMARY KEY,
     patient_id INT REFERENCES patients(id) ON DELETE CASCADE,
     doctor_id INT REFERENCES users(id) ON DELETE CASCADE,
+    service_id INT REFERENCES services(id) ON DELETE CASCADE,
     timeslots_id INT REFERENCES timeslots(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -95,3 +101,16 @@ INSERT INTO timeslots (doctor_id, appointment_time) VALUES
 (2, '2025-05-16 09:30'),
 (3, '2025-05-17 14:00'),
 (3, '2025-05-17 15:00');
+
+-- Тестовые данные для таблицы services
+INSERT INTO services (doctor_id, name) VALUES
+  (1, 'Консультация педиатра'),
+  (1, 'Вакцинация и профилактика'),
+  (1, 'Детский осмотр'),
+  (2, 'Консультация терапевта'),
+  (2, 'Снятие ЭКГ'),
+  (2, 'УЗИ сердца'),
+  (3, 'Кардиологическая консультация'),
+  (3, 'Эхокардиография'),
+  (3, 'Нагрузочная ЭКГ');
+

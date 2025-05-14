@@ -12,15 +12,19 @@ func NewPatientService(r domain.PatientRepository) *PatientService {
 	return &PatientService{repo: r}
 }
 
-func (s *PatientService) FindOrRegister(telegramID int64, fullName, iin string) error {
-	_, err := s.repo.GetByTelegramID(telegramID)
-	if err == nil {
-		return nil
-	}
-	return s.repo.RegisterPatient(fullName, iin, telegramID)
+func (s *PatientService) FindOrRegister(chatID int64, fullName, iin string) error {
+	return s.repo.RegisterPatient(fullName, iin, chatID)
 }
 
-func (s *PatientService) Exists(telegramID int64) bool {
-	_, err := s.repo.GetByTelegramID(telegramID)
-	return err == nil
+func (s *PatientService) Exists(chatID int64) bool {
+	patient, err := s.repo.GetByTelegramID(chatID)
+	return err == nil && patient != nil
+}
+
+func (s *PatientService) GetIDByChatID(chatID int64) (int, error) {
+	patient, err := s.repo.GetByTelegramID(chatID)
+	if err != nil {
+		return 0, err
+	}
+	return patient.ID, nil
 }
