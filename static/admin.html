@@ -113,13 +113,23 @@
 <div id="register" class="tab-content active">
   <form id="register-form">
     <label>ИИН:</label>
-    <input type="text" name="iin" required />
+    <input type="text" name="iin" required pattern="\d{12}" minlength="12" maxlength="12" title="ИИН должен содержать ровно 12 цифр" />
     <label>Пароль:</label>
-    <input type="password" name="password" required />
+    <input type="password" name="password" required minlength="6" />
     <label>ФИО:</label>
     <input type="text" name="full_name" required />
-    <label>Роль (admin / doctor):</label>
-    <input type="text" name="role" required />
+    <label>Роль:</label>
+    <select name="role" id="role-select" required onchange="handleRoleChange()">
+      <option value="">-- выберите роль --</option>
+      <option value="admin">admin</option>
+      <option value="doctor">doctor</option>
+    </select>
+
+    <div id="specialization-group" style="display: none;">
+      <label>Специализация:</label>
+      <select name="specialization_id" id="specialization-select" required type="number"></select>
+    </div>
+    
     <button type="submit">Зарегистрировать</button>
     <div class="response" id="register-response"></div>
   </form>
@@ -174,6 +184,42 @@
     window.location.href = "/login";
   }
 
+  function handleRoleChange() {
+  const role = document.getElementById("role-select").value;
+  const specializationGroup = document.getElementById("specialization-group");
+  if (role === "doctor") {
+    specializationGroup.style.display = "block";
+    loadSpecializations();
+  } else {
+    specializationGroup.style.display = "none";
+  }
+}
+
+function loadSpecializations() {
+  fetch("/admin/specializations", {
+    headers: {
+      "Authorization": "Bearer " + token
+    }
+  })
+  .then(res => {
+    if (!res.ok) throw new Error("Ошибка при загрузке специализаций");
+    return res.json();
+  })
+  .then(data => {
+    const select = document.getElementById("specialization-select");
+    select.innerHTML = "";
+    data.specializations.forEach(spec => {
+      const option = document.createElement("option");
+      option.value = Number(spec.id);
+      option.textContent = spec.name;
+      select.appendChild(option);
+    });
+  })
+  .catch(err => {
+    alert("Ошибка: " + err.message);
+  });
+}
+
   function switchTab(id) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -183,6 +229,20 @@
   }
 
   function postJSON(url, data, responseId) {
+    // Convert specialization_id to number if present
+    if (data.specialization_id) {
+      data = {
+        ...data,
+        specialization_id: Number(data.specialization_id)
+      };
+    }
+
+    console.log('Request URL:', url);
+    console.log('Request data:', {
+      ...data,
+      password: data.password ? '[HIDDEN]' : undefined
+    });
+    
     fetch(url, {
       method: "POST",
       headers: {
@@ -193,14 +253,27 @@
     })
     .then(async res => {
       const text = await res.text();
+      console.log('Response status:', res.status);
+      console.log('Response text:', text);
+      
       const el = document.getElementById(responseId);
       el.className = "response";
-      el.textContent = res.ok ? text : "Ошибка: " + text;
+      
+      try {
+        const jsonResponse = JSON.parse(text);
+        el.textContent = res.ok ? 
+          (jsonResponse.message || "Операция выполнена успешно") : 
+          ("Ошибка: " + (jsonResponse.error || text));
+      } catch (e) {
+        el.textContent = res.ok ? text : "Ошибка: " + text;
+      }
+      
       if (!res.ok) el.classList.add("error");
     })
     .catch(err => {
+      console.error('Network error:', err);
       const el = document.getElementById(responseId);
-      el.textContent = "Ошибка: " + err.message;
+      el.textContent = "Ошибка сети: " + err.message;
       el.className = "response error";
     });
   }
@@ -252,7 +325,46 @@
 
   document.getElementById("register-form").addEventListener("submit", function(e) {
     e.preventDefault();
-    const data = Object.fromEntries(new FormData(this).entries());
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+    
+    // Validate IIN
+    if (!/^\d{12}$/.test(data.iin)) {
+      const el = document.getElementById("register-response");
+      el.textContent = "Ошибка: ИИН должен содержать ровно 12 цифр";
+      el.className = "response error";
+      return;
+    }
+
+    // Validate required fields
+    if (!data.password || !data.full_name || !data.role) {
+      const el = document.getElementById("register-response");
+      el.textContent = "Ошибка: Все поля обязательны для заполнения";
+      el.className = "response error";
+      return;
+    }
+
+    // Handle specialization_id for doctors
+    if (data.role === "doctor") {
+      if (!data.specialization_id) {
+        const el = document.getElementById("register-response");
+        el.textContent = "Ошибка: Выберите специализацию для врача";
+        el.className = "response error";
+        return;
+      }
+    } else {
+      // Remove specialization_id if role is not doctor
+      delete data.specialization_id;
+    }
+    
+    // Add password validation
+    if (data.password.length < 6) {
+      const el = document.getElementById("register-response");
+      el.textContent = "Ошибка: Пароль должен содержать минимум 6 символов";
+      el.className = "response error";
+      return;
+    }
+    
     postJSON("/admin/register", data, "register-response");
   });
 

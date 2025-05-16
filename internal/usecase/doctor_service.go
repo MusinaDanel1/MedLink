@@ -25,3 +25,7 @@ func (s *DoctorService) GetServicesByDoctor(doctorID int) ([]domain.Service, err
 func (s *DoctorService) GetAvailableTimeSlots(doctorID int) ([]domain.TimeSlot, error) {
 	return s.repo.GetAvailableTimeSlots(doctorID)
 }
+
+func (s *DoctorService) CreateDoctor(fullName string, specializationID int) error {
+	return s.repo.CreateDoctor(fullName, specializationID)
+}

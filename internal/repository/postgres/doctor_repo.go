@@ -13,6 +13,14 @@ func NewDoctorRepository(db *sql.DB) *DoctorRepository {
 	return &DoctorRepository{db: db}
 }
 
+func (r *DoctorRepository) CreateDoctor(fullName string, specializationID int) error {
+	_, err := r.db.Exec(
+		"INSERT INTO doctors (full_name, specialization_id) VALUES ($1, $2)",
+		fullName, specializationID,
+	)
+	return err
+}
+
 func (r *DoctorRepository) GetAllSpecializations() ([]domain.Specialization, error) {
 	rows, err := r.db.Query("SELECT id,name FROM specializations")
 	if err != nil {

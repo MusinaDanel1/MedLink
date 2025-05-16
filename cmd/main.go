@@ -80,13 +80,13 @@ func main() {
 
 	// Initialize services
 	authService := usecase.NewAuthService(authRepo)
-	adminService := usecase.NewAdminService(adminRepo)
-	patientService := usecase.NewPatientService(patientRepo)
 	doctorService := usecase.NewDoctorService(doctorRepo)
+	adminService := usecase.NewAdminService(adminRepo, doctorService)
+	patientService := usecase.NewPatientService(patientRepo)
 	appointmentService := usecase.NewAppointmentService(appointmentRepo)
 	// Initialize handlers
 	authHandler := http1.NewAuthHandler(authService)
-	adminHandler := http1.NewAdminHandler(adminService)
+	adminHandler := http1.NewAdminHandler(adminService, doctorService)
 	botHandler := telegram.NewBotHandler(bot, patientService, doctorService, appointmentService)
 
 	u := tgbotapi.NewUpdate(0)
@@ -126,6 +126,7 @@ func main() {
 	mux.Handle("/admin/unblock", adminMiddleware(http.HandlerFunc(adminHandler.UnblockUser)))
 	mux.Handle("/admin/delete", adminMiddleware(http.HandlerFunc(adminHandler.DeleteUser)))
 	mux.Handle("/admin/users", adminMiddleware(http.HandlerFunc(adminHandler.GetAllUsers)))
+	mux.Handle("/admin/specializations", adminMiddleware(http.HandlerFunc(adminHandler.GetSpecializations)))
 
 	// Doctor routes
 	mux.Handle("/doctor-dashboard", http1.AuthMiddleware(http.HandlerFunc(authHandler.DoctorDashboard)))

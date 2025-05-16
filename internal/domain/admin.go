@@ -9,7 +9,7 @@ type AdminRepository interface {
 }
 
 type AdminService interface {
-	RegisterUser(iin, password, fullName, role string) error
+	RegisterUser(iin, password, fullName, role string, specializationID int) error
 	BlockUser(iin string) error
 	UnblockUser(iin string) error
 	DeleteUser(iin string) error
