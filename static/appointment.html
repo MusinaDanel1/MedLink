@@ -2,55 +2,99 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Video Call</title>
+  <title>Приём: Видео + Чат</title>
   <style>
-    /* Сброс и тело */
-    * { box-sizing:border-box; margin:0; padding:0; }
-    html, body { width:100%; height:100%; background:#000; overflow:hidden; }
-    body { display:flex; font-family:Arial,sans-serif; }
+    * { box-sizing: border-box; margin:0; padding:0 }
+    html, body { width:100%; height:100%; overflow:hidden; font-family:Arial,sans-serif }
+    body { display:flex; }
 
-    /* Видео-область */
+    /* левая колонка: видео */
     .video-container {
-      position:relative; flex:1; display:grid; place-items:center;
+      position:relative;
+      flex:1;
+      background:#000;
+      display:grid;
+      place-items:center;
+    }
+    #remote {
+      width:100%; height:100%;
+      object-fit:cover;
       background:#000;
     }
-    video {
-      width:100%; height:100%; object-fit:cover; background:#000;
-    }
     .local {
-      position:absolute; bottom:80px; right:20px;
-      width:160px; height:120px; border:2px solid #fff;
-      border-radius:8px; overflow:hidden; background:#222;
+      position:absolute;
+      bottom:80px; right:20px;
+      width:160px; height:120px;
+      border:2px solid #fff;
+      border-radius:8px;
+      overflow:hidden;
+      background:#222;
     }
-    .local video { width:100%; height:100%; }
-
-    /* Панель кнопок */
+    .local video { width:100%; height:100%; object-fit:cover }
     .controls {
-      position:absolute; bottom:20px; left:50%;
-      transform:translateX(-50%); display:flex; gap:16px;
-      background:rgba(0,0,0,0.5); padding:8px 16px;
+      position:absolute;
+      bottom:20px; left:50%;
+      transform:translateX(-50%);
+      display:flex; gap:16px;
+      background:rgba(0,0,0,0.5);
+      padding:8px 16px;
       border-radius:32px;
     }
     .controls button {
-      width:48px; height:48px; border:none; border-radius:50%;
-      font-size:20px; cursor:pointer; background:#fff;
+      width:48px; height:48px;
+      border:none; border-radius:50%;
+      background:#fff; cursor:pointer;
+      font-size:20px;
       display:flex; align-items:center; justify-content:center;
     }
     .controls button.end {
       background:#e53935; color:#fff;
     }
+
+    /* правая колонка: чат */
+    .sidebar {
+      width:300px;
+      display:flex; flex-direction:column;
+      border-left:1px solid #333;
+      background:#f5f5f5;
+    }
+    .chat-header {
+      padding:12px; background:#6200ee; color:#fff;
+      text-align:center; font-weight:bold;
+    }
+    #msgList {
+      flex:1; padding:8px 12px; overflow-y:auto;
+      background:#fff;
+    }
+    .chat-input {
+      display:flex; padding:8px 12px; background:#eee;
+    }
+    .chat-input input {
+      flex:1; padding:8px; border:1px solid #ccc;
+      border-radius:4px;
+    }
+    .chat-input button {
+      margin-left:8px; padding:8px 12px;
+      border:none; background:#6200ee; color:#fff;
+      border-radius:4px; cursor:pointer;
+    }
+    .message {
+      margin-bottom:8px;
+    }
+    .message .sender {
+      font-weight:bold;
+      margin-right:4px;
+    }
   </style>
 </head>
 <body>
 
+  <!-- VIDEO -->
   <div class="video-container">
-    <!-- Удалённое видео -->
     <video id="remote" autoplay playsinline></video>
-    <!-- Локальное видео -->
     <div class="local">
       <video id="local" autoplay muted playsinline></video>
     </div>
-    <!-- Кнопки -->
     <div class="controls">
       <button id="toggleMic">🎤</button>
       <button id="toggleCamera">📷</button>
@@ -58,29 +102,33 @@
     </div>
   </div>
 
+  <!-- CHAT -->
+  <div class="sidebar">
+    <div class="chat-header">Чат</div>
+    <div id="msgList"></div>
+    <div class="chat-input">
+      <input id="msgInput" placeholder="Введите сообщение…" />
+      <button id="sendBtn">Отправить</button>
+    </div>
+  </div>
+
   <script>
-  (async () => {
-    const p = new URLSearchParams(location.search);
-    const apptID = p.get("id");
-    const role   = p.get("role") || "patient";
-    const wsUrl  = `${location.protocol.replace("http","ws")}//${location.host}` +
-                   `/ws?appointment_id=${apptID}&role=${role}`;
+  (async function(){
+    const params = new URLSearchParams(location.search);
+    const apptID = params.get("id");
+    const role   = params.get("role") || "patient";
+    const wsUrl  = `${location.protocol.replace("http","ws")}//${location.host}`
+                  + `/ws?appointment_id=${apptID}&role=${role}`;
 
     console.log("▶️ init", { apptID, role, wsUrl });
 
-    // 1) RTCPeerConnection + логи всех состояний
+    // 1) PeerConnection
     const pc = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+      iceServers: [{urls:"stun:stun.l.google.com:19302"}]
     });
-    pc.onicegatheringstatechange = () =>
-      console.log("🕵️‍ ICE gathering state:", pc.iceGatheringState);
-    pc.oniceconnectionstatechange = () =>
-      console.log("🔗 ICE connection state:", pc.iceConnectionState);
-    pc.onconnectionstatechange = () =>
-      console.log("🌐 PeerConnection state:", pc.connectionState);
     pc.onicecandidate = ({candidate}) => {
-      console.log("📨 candidate event:", candidate);
-      if (candidate && ws.readyState === 1) {
+      console.log("📨 icecandidate", candidate);
+      if (candidate && ws.readyState===1) {
         ws.send(JSON.stringify({type:"candidate",data:candidate}));
       }
     };
@@ -88,27 +136,25 @@
       console.log("👀 got remote track", e.streams[0]);
       document.getElementById("remote").srcObject = e.streams[0];
     };
-    pc.onnegotiationneeded = () =>
-      console.log("🔄 negotiationneeded");
 
-    // 2) Захват локального потока
+    // 2) Local media
     let localStream;
     try {
       localStream = await navigator.mediaDevices
         .getUserMedia({video:true,audio:true});
-      console.log("📹 got localStream", localStream);
+      console.log("📹 got local stream", localStream);
       document.getElementById("local").srcObject = localStream;
-      localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-    } catch (e) {
+      localStream.getTracks().forEach(t=>pc.addTrack(t, localStream));
+    } catch(e) {
       return console.error("❌ getUserMedia failed", e);
     }
 
-    // 3) Сигналинг
+    // 3) Signaling WS
     const ws = new WebSocket(wsUrl);
     ws.onopen = async () => {
       console.log("🔗 WS open");
-      if (role === "doctor") {
-        console.log("👨‍⚕️ role=doctor creating offer");
+      if (role==="doctor") {
+        console.log("👨‍⚕️ createOffer");
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         console.log("📨 send offer", offer);
@@ -118,45 +164,70 @@
     ws.onmessage = async ({data}) => {
       const msg = JSON.parse(data);
       console.log("📥 WS message", msg);
-      if (msg.type === "offer") {
-        console.log("👂 received offer");
+      if (msg.type==="offer") {
         await pc.setRemoteDescription(msg.data);
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         console.log("📨 send answer", answer);
         ws.send(JSON.stringify({type:"answer",data:answer}));
       }
-      else if (msg.type === "answer") {
-        console.log("👂 received answer");
+      else if (msg.type==="answer") {
         await pc.setRemoteDescription(msg.data);
       }
-      else if (msg.type === "candidate") {
-        console.log("👂 received candidate", msg.data);
+      else if (msg.type==="candidate") {
+        console.log("👂 addIceCandidate", msg.data);
         try { await pc.addIceCandidate(msg.data); }
-        catch(e){ console.warn("⚠️ addIceCandidate failed", e); }
+        catch(e){ console.warn("⚠️ ICE failed", e) }
       }
     };
     ws.onerror = e => console.error("🚨 WS error", e);
     ws.onclose = () => console.log("🔌 WS closed");
 
-    // 4) Кнопки управления
+    // 4) Controls
     document.getElementById("toggleMic").onclick = () => {
-      const t = localStream.getAudioTracks()[0];
-      t.enabled = !t.enabled;
-      console.log("🎤 mic toggled:", t.enabled);
-      document.getElementById("toggleMic").style.opacity = t.enabled? "1":"0.5";
+      const tr = localStream.getAudioTracks()[0];
+      tr.enabled = !tr.enabled;
+      console.log("🎤 mic", tr.enabled);
+      document.getElementById("toggleMic").style.opacity = tr.enabled?1:0.5;
     };
     document.getElementById("toggleCamera").onclick = () => {
-      const t = localStream.getVideoTracks()[0];
-      t.enabled = !t.enabled;
-      console.log("📷 camera toggled:", t.enabled);
-      document.getElementById("toggleCamera").style.opacity = t.enabled? "1":"0.5";
+      const tr = localStream.getVideoTracks()[0];
+      tr.enabled = !tr.enabled;
+      console.log("📷 cam", tr.enabled);
+      document.getElementById("toggleCamera").style.opacity = tr.enabled?1:0.5;
     };
     document.getElementById("endCall").onclick = () => {
-      pc.close();
-      ws.close();
-      console.log("⏹ call ended");
+      pc.close(); ws.close();
+      console.log("⏹️ call ended");
     };
+
+    // 5) Chat
+    const msgList = document.getElementById("msgList");
+    const inp     = document.getElementById("msgInput");
+    document.getElementById("sendBtn").onclick = async () => {
+      const txt = inp.value.trim();
+      if (!txt) return;
+      await fetch(`/api/appointments/${apptID}/messages`, {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({sender:role,content:txt})
+      });
+      inp.value = "";
+      loadChat();
+    };
+    async function loadChat() {
+      try {
+        const res = await fetch(`/api/appointments/${apptID}/messages`);
+        const arr = await res.json();
+        msgList.innerHTML = arr.map(m=>
+          `<div class="message"><span class="sender">${m.sender}:</span> ${m.content}</div>`
+        ).join("");
+        msgList.scrollTop = msgList.scrollHeight;
+      } catch(e) {
+        console.error("❌ loadChat", e);
+      }
+    }
+    loadChat();
   })();
   </script>
 </body>
