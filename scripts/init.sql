@@ -66,16 +66,19 @@ CREATE TABLE pdf_files (
 -- Создание таблицы video_sessions
 CREATE TABLE video_sessions (
     id SERIAL PRIMARY KEY,
-    appointment_id INT REFERENCES appointments(id) ON DELETE CASCADE,
+    appointment_id INT NOT NULLREFERENCES appointments(id) ON DELETE CASCADE,
+    room_name TEXT NOT NULL,
     video_url TEXT NOT NULL,
-    started_at TIMESTAMP,
+    started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     ended_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP NOT NULLDEFAULT CURRENT_TIMESTAMP
 );
 
 -- Создание таблицы messages
 CREATE TABLE messages (
     id SERIAL PRIMARY KEY,
+    appointment_id INT NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+    sender TEXT NOT NULL CHECK (sender IN ('patient', 'doctor', 'bot'))
     patient_id INT REFERENCES patients(id) ON DELETE CASCADE,
     sender TEXT CHECK (sender IN ('patient', 'bot')) NOT NULL,
     content TEXT,

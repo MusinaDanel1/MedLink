@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Video Call</title>
+</head>
+<body>
+  <video id="local"  autoplay muted
+         style="width:240px;height:180px;border:1px solid #666"></video>
+  <video id="remote" autoplay
+         style="width:240px;height:180px;border:1px solid #666"></video>
+
+  <script>
+    (async function() {
+      const params = new URLSearchParams(location.search);
+      const apptID = params.get("id");
+      const role   = params.get("role") || "patient";
+      const wsUrl  = `${location.protocol.replace("http","ws")}//${location.host}`
+                   + `/ws?appointment_id=${apptID}&role=${role}`;
+
+      console.log("▶️ init", { apptID, role, wsUrl });
+
+      // 1) Подготовим RTCPeerConnection и обработчики
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+      });
+
+      pc.onicecandidate = e => {
+        if (e.candidate) {
+          console.log("📨 send candidate", e.candidate);
+          ws.send(JSON.stringify({ type: "candidate", data: e.candidate }));
+        }
+      };
+
+      pc.ontrack = e => {
+        console.log("👀 got remote track", e.streams[0]);
+        document.getElementById("remote").srcObject = e.streams[0];
+      };
+
+      // 2) Захватим локальное видео/аудио и сразу добавим треки
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        console.log("📹 got local stream", stream);
+        document.getElementById("local").srcObject = stream;
+        stream.getTracks().forEach(t => pc.addTrack(t, stream));
+      } catch (err) {
+        return console.error("❌ getUserMedia failed", err);
+      }
+
+      // 3) После того как локальный поток прописан в pc — открываем WebSocket
+      const ws = new WebSocket(wsUrl);
+
+      ws.onopen = async () => {
+        console.log("🔗 WS open");
+        if (role === "doctor") {
+          console.log("👨‍⚕️ role=doctor → createOffer");
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          console.log("📨 send offer", offer);
+          ws.send(JSON.stringify({ type: "offer", data: offer }));
+        }
+      };
+
+      ws.onmessage = async ev => {
+        const msg = JSON.parse(ev.data);
+        console.log("📥 ws.onmessage", msg);
+        if (msg.type === "offer") {
+          console.log("👂 got offer → createAnswer");
+          await pc.setRemoteDescription(msg.data);
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          console.log("📨 send answer", answer);
+          ws.send(JSON.stringify({ type: "answer", data: answer }));
+        } else if (msg.type === "answer") {
+          console.log("👂 got answer → setRemoteDescription");
+          await pc.setRemoteDescription(msg.data);
+        } else if (msg.type === "candidate") {
+          console.log("👂 got candidate → addIceCandidate");
+          try {
+            await pc.addIceCandidate(msg.data);
+          } catch (e) {
+            console.warn("⚠️ addIceCandidate failed", e);
+          }
+        }
+      };
+
+      ws.onerror = e => console.error("🚨 WS error", e);
+      ws.onclose = () => console.log("🔌 WS closed");
+    })();
+  </script>
+</body>
+</html>

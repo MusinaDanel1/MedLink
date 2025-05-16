@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/gin-gonic/gin"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
@@ -133,6 +134,17 @@ func main() {
 
 	// Static files
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+
+	r := gin.Default()
+	// 1) Сигнальный WebSocket
+	r.GET("/ws", http1.SignalingHandler)
+	// 2) Отдаём конкретную страницу приёма
+	r.GET("/appointment.html", func(c *gin.Context) {
+		c.File("./static/appointment.html")
+	})
+	// 3) Раздаём остальную статику из под /static
+	r.Static("/static", "./static")
+	r.Run(":8080")
 
 	port := os.Getenv("APP_PORT")
 	if port == "" {
