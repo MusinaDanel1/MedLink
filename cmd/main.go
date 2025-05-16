@@ -78,6 +78,7 @@ func main() {
 	patientRepo := postgres.NewPatientRepository(db)
 	doctorRepo := postgres.NewDoctorRepository(db)
 	appointmentRepo := postgres.NewAppointmentRepository(db)
+	msgRepo := postgres.NewMessageRepository(db)
 
 	// Initialize services
 	authService := usecase.NewAuthService(authRepo)
@@ -85,10 +86,12 @@ func main() {
 	adminService := usecase.NewAdminService(adminRepo, doctorService)
 	patientService := usecase.NewPatientService(patientRepo)
 	appointmentService := usecase.NewAppointmentService(appointmentRepo)
+	msgService := usecase.NewMessageService(msgRepo)
 	// Initialize handlers
 	authHandler := http1.NewAuthHandler(authService)
 	adminHandler := http1.NewAdminHandler(adminService, doctorService)
 	botHandler := telegram.NewBotHandler(bot, patientService, doctorService, appointmentService)
+	msgHandler := http1.NewMessageHandler(msgService)
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
@@ -144,6 +147,8 @@ func main() {
 	})
 	// 3) Раздаём остальную статику из под /static
 	r.Static("/static", "./static")
+	r.GET("/api/appointments/:id/messages", msgHandler.List)
+	r.POST("/api/appointments/:id/messages", msgHandler.Create)
 	r.Run(":8080")
 
 	port := os.Getenv("APP_PORT")

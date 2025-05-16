@@ -1,93 +1,163 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   <title>Video Call</title>
+  <style>
+    /* Сброс и тело */
+    * { box-sizing:border-box; margin:0; padding:0; }
+    html, body { width:100%; height:100%; background:#000; overflow:hidden; }
+    body { display:flex; font-family:Arial,sans-serif; }
+
+    /* Видео-область */
+    .video-container {
+      position:relative; flex:1; display:grid; place-items:center;
+      background:#000;
+    }
+    video {
+      width:100%; height:100%; object-fit:cover; background:#000;
+    }
+    .local {
+      position:absolute; bottom:80px; right:20px;
+      width:160px; height:120px; border:2px solid #fff;
+      border-radius:8px; overflow:hidden; background:#222;
+    }
+    .local video { width:100%; height:100%; }
+
+    /* Панель кнопок */
+    .controls {
+      position:absolute; bottom:20px; left:50%;
+      transform:translateX(-50%); display:flex; gap:16px;
+      background:rgba(0,0,0,0.5); padding:8px 16px;
+      border-radius:32px;
+    }
+    .controls button {
+      width:48px; height:48px; border:none; border-radius:50%;
+      font-size:20px; cursor:pointer; background:#fff;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .controls button.end {
+      background:#e53935; color:#fff;
+    }
+  </style>
 </head>
 <body>
-  <video id="local"  autoplay muted
-         style="width:240px;height:180px;border:1px solid #666"></video>
-  <video id="remote" autoplay
-         style="width:240px;height:180px;border:1px solid #666"></video>
+
+  <div class="video-container">
+    <!-- Удалённое видео -->
+    <video id="remote" autoplay playsinline></video>
+    <!-- Локальное видео -->
+    <div class="local">
+      <video id="local" autoplay muted playsinline></video>
+    </div>
+    <!-- Кнопки -->
+    <div class="controls">
+      <button id="toggleMic">🎤</button>
+      <button id="toggleCamera">📷</button>
+      <button id="endCall" class="end">⏹️</button>
+    </div>
+  </div>
 
   <script>
-    (async function() {
-      const params = new URLSearchParams(location.search);
-      const apptID = params.get("id");
-      const role   = params.get("role") || "patient";
-      const wsUrl  = `${location.protocol.replace("http","ws")}//${location.host}`
-                   + `/ws?appointment_id=${apptID}&role=${role}`;
+  (async () => {
+    const p = new URLSearchParams(location.search);
+    const apptID = p.get("id");
+    const role   = p.get("role") || "patient";
+    const wsUrl  = `${location.protocol.replace("http","ws")}//${location.host}` +
+                   `/ws?appointment_id=${apptID}&role=${role}`;
 
-      console.log("▶️ init", { apptID, role, wsUrl });
+    console.log("▶️ init", { apptID, role, wsUrl });
 
-      // 1) Подготовим RTCPeerConnection и обработчики
-      const pc = new RTCPeerConnection({
-        iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-      });
-
-      pc.onicecandidate = e => {
-        if (e.candidate) {
-          console.log("📨 send candidate", e.candidate);
-          ws.send(JSON.stringify({ type: "candidate", data: e.candidate }));
-        }
-      };
-
-      pc.ontrack = e => {
-        console.log("👀 got remote track", e.streams[0]);
-        document.getElementById("remote").srcObject = e.streams[0];
-      };
-
-      // 2) Захватим локальное видео/аудио и сразу добавим треки
-      let stream;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        console.log("📹 got local stream", stream);
-        document.getElementById("local").srcObject = stream;
-        stream.getTracks().forEach(t => pc.addTrack(t, stream));
-      } catch (err) {
-        return console.error("❌ getUserMedia failed", err);
+    // 1) RTCPeerConnection + логи всех состояний
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+    });
+    pc.onicegatheringstatechange = () =>
+      console.log("🕵️‍ ICE gathering state:", pc.iceGatheringState);
+    pc.oniceconnectionstatechange = () =>
+      console.log("🔗 ICE connection state:", pc.iceConnectionState);
+    pc.onconnectionstatechange = () =>
+      console.log("🌐 PeerConnection state:", pc.connectionState);
+    pc.onicecandidate = ({candidate}) => {
+      console.log("📨 candidate event:", candidate);
+      if (candidate && ws.readyState === 1) {
+        ws.send(JSON.stringify({type:"candidate",data:candidate}));
       }
+    };
+    pc.ontrack = e => {
+      console.log("👀 got remote track", e.streams[0]);
+      document.getElementById("remote").srcObject = e.streams[0];
+    };
+    pc.onnegotiationneeded = () =>
+      console.log("🔄 negotiationneeded");
 
-      // 3) После того как локальный поток прописан в pc — открываем WebSocket
-      const ws = new WebSocket(wsUrl);
+    // 2) Захват локального потока
+    let localStream;
+    try {
+      localStream = await navigator.mediaDevices
+        .getUserMedia({video:true,audio:true});
+      console.log("📹 got localStream", localStream);
+      document.getElementById("local").srcObject = localStream;
+      localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+    } catch (e) {
+      return console.error("❌ getUserMedia failed", e);
+    }
 
-      ws.onopen = async () => {
-        console.log("🔗 WS open");
-        if (role === "doctor") {
-          console.log("👨‍⚕️ role=doctor → createOffer");
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          console.log("📨 send offer", offer);
-          ws.send(JSON.stringify({ type: "offer", data: offer }));
-        }
-      };
+    // 3) Сигналинг
+    const ws = new WebSocket(wsUrl);
+    ws.onopen = async () => {
+      console.log("🔗 WS open");
+      if (role === "doctor") {
+        console.log("👨‍⚕️ role=doctor creating offer");
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        console.log("📨 send offer", offer);
+        ws.send(JSON.stringify({type:"offer",data:offer}));
+      }
+    };
+    ws.onmessage = async ({data}) => {
+      const msg = JSON.parse(data);
+      console.log("📥 WS message", msg);
+      if (msg.type === "offer") {
+        console.log("👂 received offer");
+        await pc.setRemoteDescription(msg.data);
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        console.log("📨 send answer", answer);
+        ws.send(JSON.stringify({type:"answer",data:answer}));
+      }
+      else if (msg.type === "answer") {
+        console.log("👂 received answer");
+        await pc.setRemoteDescription(msg.data);
+      }
+      else if (msg.type === "candidate") {
+        console.log("👂 received candidate", msg.data);
+        try { await pc.addIceCandidate(msg.data); }
+        catch(e){ console.warn("⚠️ addIceCandidate failed", e); }
+      }
+    };
+    ws.onerror = e => console.error("🚨 WS error", e);
+    ws.onclose = () => console.log("🔌 WS closed");
 
-      ws.onmessage = async ev => {
-        const msg = JSON.parse(ev.data);
-        console.log("📥 ws.onmessage", msg);
-        if (msg.type === "offer") {
-          console.log("👂 got offer → createAnswer");
-          await pc.setRemoteDescription(msg.data);
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          console.log("📨 send answer", answer);
-          ws.send(JSON.stringify({ type: "answer", data: answer }));
-        } else if (msg.type === "answer") {
-          console.log("👂 got answer → setRemoteDescription");
-          await pc.setRemoteDescription(msg.data);
-        } else if (msg.type === "candidate") {
-          console.log("👂 got candidate → addIceCandidate");
-          try {
-            await pc.addIceCandidate(msg.data);
-          } catch (e) {
-            console.warn("⚠️ addIceCandidate failed", e);
-          }
-        }
-      };
-
-      ws.onerror = e => console.error("🚨 WS error", e);
-      ws.onclose = () => console.log("🔌 WS closed");
-    })();
+    // 4) Кнопки управления
+    document.getElementById("toggleMic").onclick = () => {
+      const t = localStream.getAudioTracks()[0];
+      t.enabled = !t.enabled;
+      console.log("🎤 mic toggled:", t.enabled);
+      document.getElementById("toggleMic").style.opacity = t.enabled? "1":"0.5";
+    };
+    document.getElementById("toggleCamera").onclick = () => {
+      const t = localStream.getVideoTracks()[0];
+      t.enabled = !t.enabled;
+      console.log("📷 camera toggled:", t.enabled);
+      document.getElementById("toggleCamera").style.opacity = t.enabled? "1":"0.5";
+    };
+    document.getElementById("endCall").onclick = () => {
+      pc.close();
+      ws.close();
+      console.log("⏹ call ended");
+    };
+  })();
   </script>
 </body>
 </html>
