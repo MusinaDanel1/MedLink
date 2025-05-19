@@ -18,26 +18,28 @@ func (r *MessageRepository) Create(m domain.Message) (domain.Message, error) {
 	INSERT INTO messages (
 	    appointment_id, sender, content, attachment_url)
 		VALUES ($1, $2, $3, $4)
-		RETURNING id, appointment_id, sender, content, attachmemt_url, sent_at`
+		RETURNING id, appointment_id, sender, content, attachment_url, sent_at`
 
 	var created domain.Message
+	var attachmentURL sql.NullString
 	err := r.db.QueryRow(
 		query,
 		m.AppointmentID,
 		m.Sender,
 		m.Content,
-		m.AttachmentURL,
+		sql.NullString{String: m.AttachmentURL, Valid: m.AttachmentURL != ""},
 	).Scan(
 		&created.ID,
 		&created.AppointmentID,
 		&created.Sender,
 		&created.Content,
-		&created.AttachmentURL,
+		&attachmentURL,
 		&created.SentAt,
 	)
 	if err != nil {
 		return domain.Message{}, err
 	}
+	created.AttachmentURL = attachmentURL.String
 	return created, nil
 }
 
@@ -57,17 +59,26 @@ func (r *MessageRepository) ListByAppointment(appointmentID int) ([]domain.Messa
 	var msgs []domain.Message
 	for rows.Next() {
 		var m domain.Message
+		var attachmentURL sql.NullString
 		if err := rows.Scan(
 			&m.ID,
 			&m.AppointmentID,
 			&m.Sender,
 			&m.Content,
-			&m.AttachmentURL,
+			&attachmentURL,
 			&m.SentAt,
 		); err != nil {
 			return nil, err
 		}
+		m.AttachmentURL = attachmentURL.String
 		msgs = append(msgs, m)
 	}
 	return msgs, rows.Err()
+}
+
+func (r *MessageRepository) AppointmentExists(appointmentID int) (bool, error) {
+	var exists bool
+	query := `SELECT EXISTS(SELECT 1 FROM appointments WHERE id = $1)`
+	err := r.db.QueryRow(query, appointmentID).Scan(&exists)
+	return exists, err
 }

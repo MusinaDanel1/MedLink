@@ -66,26 +66,29 @@ CREATE TABLE pdf_files (
 -- Создание таблицы video_sessions
 CREATE TABLE video_sessions (
     id SERIAL PRIMARY KEY,
-    appointment_id INT NOT NULLREFERENCES appointments(id) ON DELETE CASCADE,
+    appointment_id INT NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
     room_name TEXT NOT NULL,
     video_url TEXT NOT NULL,
     started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     ended_at TIMESTAMP,
-    created_at TIMESTAMP NOT NULLDEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Создание таблицы messages
 CREATE TABLE messages (
     id SERIAL PRIMARY KEY,
     appointment_id INT NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
-    sender TEXT NOT NULL CHECK (sender IN ('patient', 'doctor', 'bot'))
-    patient_id INT REFERENCES patients(id) ON DELETE CASCADE,
-    sender TEXT CHECK (sender IN ('patient', 'bot')) NOT NULL,
+    sender TEXT NOT NULL CHECK (sender IN ('patient', 'doctor', 'bot')),
     content TEXT,
     attachment_url TEXT,
     sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Insert test users first
+INSERT INTO users (iin, password_hash, full_name, role) VALUES
+('000000000002', '$2a$10$your_hash_here', 'Марина Цветаева', 'doctor'),
+('000000000003', '$2a$10$your_hash_here', 'Айгуль Омарова', 'doctor'),
+('000000000004', '$2a$10$your_hash_here', 'Жанат Мусаев', 'doctor');
 
 -- Специализации
 INSERT INTO specializations (name) VALUES 
@@ -116,4 +119,24 @@ INSERT INTO services (doctor_id, name) VALUES
   (3, 'Кардиологическая консультация'),
   (3, 'Эхокардиография'),
   (3, 'Нагрузочная ЭКГ');
+
+-- Test data for video call messaging
+INSERT INTO patients (full_name, iin, telegram_id) VALUES 
+('Тестовый Пациент', '000000000001', 123456789);
+
+-- Create a test appointment for video call (using user ID 2 which is Марина Цветаева)
+INSERT INTO appointments (patient_id, doctor_id, service_id, timeslots_id, created_at) VALUES 
+(1, 1, 4, 3, CURRENT_TIMESTAMP);
+
+-- Create a test video session
+INSERT INTO video_sessions (appointment_id, room_name, video_url) VALUES 
+(1, 'test-room-1', 'https://meet.jit.si/test-room-1');
+
+-- Add some test messages
+INSERT INTO messages (appointment_id, sender, content, sent_at) VALUES 
+(1, 'patient', 'Здравствуйте, доктор!', CURRENT_TIMESTAMP - interval '5 minutes'),
+(1, 'doctor', 'Здравствуйте! Как я могу вам помочь?', CURRENT_TIMESTAMP - interval '4 minutes'),
+(1, 'patient', 'У меня болит голова последние 2 дня', CURRENT_TIMESTAMP - interval '3 minutes'),
+(1, 'doctor', 'Давайте обсудим ваши симптомы подробнее', CURRENT_TIMESTAMP - interval '2 minutes'),
+(1, 'bot', 'Видеозвонок начался', CURRENT_TIMESTAMP - interval '1 minute');
 

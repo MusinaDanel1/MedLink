@@ -8,7 +8,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// Room хранит два соединения: doctor и patient
 type Room struct {
 	doctor  *websocket.Conn
 	patient *websocket.Conn

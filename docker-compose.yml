@@ -14,12 +14,18 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U telemed_user -d telemed_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   app:
     build: .
     container_name: telemed-app
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     environment:
       - DATABASE_URL=postgres://telemed_user:secret_password@postgres:5432/telemed_db?sslmode=disable
     ports:

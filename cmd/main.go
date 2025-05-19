@@ -139,6 +139,9 @@ func main() {
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
 	r := gin.Default()
+	// Set trusted proxy to localhost and private IPs
+	r.SetTrustedProxies([]string{"127.0.0.1", "192.168.0.0/16", "10.0.0.0/8"})
+
 	// 1) Сигнальный WebSocket
 	r.GET("/ws", http1.SignalingHandler)
 	// 2) Отдаём конкретную страницу приёма
@@ -149,14 +152,17 @@ func main() {
 	r.Static("/static", "./static")
 	r.GET("/api/appointments/:id/messages", msgHandler.List)
 	r.POST("/api/appointments/:id/messages", msgHandler.Create)
-	r.Run(":8080")
 
-	port := os.Getenv("APP_PORT")
-	if port == "" {
-		port = "8080"
-	}
+	// Start Gin server in a goroutine on port 8080
+	go func() {
+		if err := r.Run(":8080"); err != nil {
+			log.Fatal(err)
+		}
+	}()
 
-	log.Printf("Server starting at http://localhost:%s", port)
+	// Start HTTP server on port 8081
+	port := "8081" // Changed from 8080 to 8081
+	log.Printf("HTTP Server starting at http://localhost:%s", port)
 	if err := http.ListenAndServe(":"+port, mux); err != nil {
 		log.Fatal(err)
 	}

@@ -131,7 +131,7 @@
           const errorText = await response.text();
           throw new Error(errorText || "Ошибка при входе в систему");
         }
-
+    
         // Try to parse response as JSON
         let data;
         try {
@@ -146,7 +146,7 @@
 
         // Store token
         localStorage.setItem('token', data.token);
-
+    
         // Обращаемся к /protected с токеном
         const protectedRes = await fetch("/protected", {
           method: "GET",
@@ -163,7 +163,7 @@
         // Если был редирект, перенаправим пользователя
         if (protectedRes.redirected) {
           console.log("Redirecting to:", protectedRes.url);
-          window.location.href = protectedRes.url;
+        window.location.href = protectedRes.url;
         } else {
           window.location.href = "/";
         }
@@ -173,6 +173,6 @@
         errorElement.textContent = error.message || "Произошла ошибка при входе в систему";
       }
     });
-</script>    
+    </script>    
 </body>
 </html>
