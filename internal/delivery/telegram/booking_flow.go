@@ -34,7 +34,15 @@ func (h *BotHandler) handleCallback(cb *tgbotapi.CallbackQuery) {
 		h.handleBookingConfirm(chatID, false)
 
 	case data == "ai_consultation":
-		h.bot.Send(tgbotapi.NewMessage(chatID, "Пожалуйста, опишите вашу жалобу."))
+		h.state[chatID] = "ai_consultation_waiting"
+		msg := tgbotapi.NewMessage(chatID, "Пожалуйста, опишите вашу жалобу, и я проконсультирую вас.")
+		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("📅 Записаться к врачу", "book_appointment"),
+				tgbotapi.NewInlineKeyboardButtonData("💬 Консультация с ИИ", "ai_consultation"),
+			),
+		)
+		h.bot.Send(msg)
 	}
 
 	h.bot.Request(tgbotapi.NewCallback(cb.ID, ""))

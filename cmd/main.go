@@ -15,6 +15,7 @@ import (
 
 	http1 "telemed/internal/delivery/http"
 	"telemed/internal/delivery/telegram"
+	"telemed/internal/delivery/video"
 	"telemed/internal/repository/postgres"
 	"telemed/internal/usecase"
 )
@@ -28,6 +29,11 @@ func main() {
 	token := os.Getenv("TELEGRAM_BOT_TOKEN")
 	if token == "" {
 		log.Fatal("TELEGRAM_BOT_TOKEN не найден в .env")
+	}
+
+	openaiKey := os.Getenv("OPENAI_API_KEY")
+	if openaiKey == "" {
+		log.Fatal("OPENAI_API_KEY не установлен в .env")
 	}
 
 	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
@@ -87,10 +93,12 @@ func main() {
 	patientService := usecase.NewPatientService(patientRepo)
 	appointmentService := usecase.NewAppointmentService(appointmentRepo)
 	msgService := usecase.NewMessageService(msgRepo)
+	openaiService := usecase.New(openaiKey)
 	// Initialize handlers
 	authHandler := http1.NewAuthHandler(authService)
 	adminHandler := http1.NewAdminHandler(adminService, doctorService)
-	botHandler := telegram.NewBotHandler(bot, patientService, doctorService, appointmentService)
+	botHandler := telegram.NewBotHandler(bot, patientService, doctorService, appointmentService, openaiService)
+
 	msgHandler := http1.NewMessageHandler(msgService)
 
 	u := tgbotapi.NewUpdate(0)
@@ -136,17 +144,17 @@ func main() {
 	mux.Handle("/doctor-dashboard", http1.AuthMiddleware(http.HandlerFunc(authHandler.DoctorDashboard)))
 
 	// Static files
-	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("templates"))))
 
 	r := gin.Default()
 	// Set trusted proxy to localhost and private IPs
 	r.SetTrustedProxies([]string{"127.0.0.1", "192.168.0.0/16", "10.0.0.0/8"})
 
 	// 1) Сигнальный WebSocket
-	r.GET("/ws", http1.SignalingHandler)
+	r.GET("/ws", video.SignalingHandler)
 	// 2) Отдаём конкретную страницу приёма
 	r.GET("/appointment.html", func(c *gin.Context) {
-		c.File("./static/appointment.html")
+		c.File("./templates/appointment.html")
 	})
 	// 3) Раздаём остальную статику из под /static
 	r.Static("/static", "./static")

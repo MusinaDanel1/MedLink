@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Приём врача</title>
+  <link rel="stylesheet" href="static/css/appointments.css" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+    }
+    .container {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+    .video-area {
+      flex: 1;
+      min-width: 0;
+      height: 100vh;
+      position: relative;
+      background: #000;
+      display: block;
+      overflow: hidden;
+    }
+    #remote {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .local {
+      position: absolute;
+      bottom: 80px;
+      right: 20px;
+      width: 160px;
+      height: 120px;
+      background: #000;
+      border: 2px solid #fff;
+      border-radius: 8px;
+      overflow: hidden;
+      z-index: 100;
+    }
+    .local video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .controls {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      z-index: 100;
+    }
+    .controls button {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    .controls button:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    .controls button.end {
+      background: #dc3545;
+    }
+    .controls button.end:hover {
+      background: #c82333;
+    }
+    .sidebar, .chat-panel {
+      width: 400px;
+      height: 100vh;
+      flex-shrink: 0;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      background: white;
+      z-index: 10;
+    }
+    .chat-panel {
+      box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+      z-index: 20;
+    }
+    .tabs {
+      display: flex;
+      padding: 10px;
+      background: #f8f9fa;
+      border-bottom: 1px solid #dee2e6;
+      flex-shrink: 0;
+    }
+    .tab-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      height: auto;
+      min-height: 0;
+    }
+    .chat-header {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f8f9fa;
+      flex-shrink: 0;
+    }
+    .close-chat {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0 5px;
+    }
+    #msgList {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      height: auto;
+      min-height: 0;
+    }
+    .chat-input {
+      padding: 10px;
+      border-top: 1px solid #eee;
+      display: flex;
+      gap: 10px;
+      background: #f8f9fa;
+      flex-shrink: 0;
+    }
+    .chat-input input {
+      flex: 1;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .chat-input button {
+      padding: 8px 15px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .message {
+      margin-bottom: 10px;
+    }
+    .message .bubble {
+      padding: 8px 12px;
+      border-radius: 12px;
+      max-width: 80%;
+    }
+    .message.me {
+      display: flex;
+      justify-content: flex-end;
+    }
+    .message.me .bubble {
+      background: #007bff;
+      color: white;
+    }
+    .message.other .bubble {
+      background: #f1f1f1;
+    }
+    .message .sender {
+      font-size: 0.8em;
+      margin-bottom: 4px;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Левая часть: видео -->
+    <div class="video-area">
+      <video id="remote" autoplay playsinline></video>
+      <div class="local">
+        <video id="local" autoplay muted playsinline></video>
+      </div>
+      <div class="controls">
+        <button id="toggleMic">🎤</button>
+        <button id="toggleCamera">📷</button>
+        <button id="toggleChat">💬</button>
+        <button id="endCall" class="end">⏹️</button>
+      </div>
+    </div>
+    <!-- Правая часть: табы -->
+    <div class="sidebar">
+      <div class="tabs">
+        <button class="tab-link active" data-tab="info">Мед. карта</button>
+        <button class="tab-link" data-tab="complaints">Жалобы</button>
+        <button class="tab-link" data-tab="diagnosis">Диагноз</button>
+        <button class="tab-link" data-tab="assignments">Назначения</button>
+        <button class="tab-link" data-tab="prescriptions">Рецепты</button>
+      </div>
+      <div class="tab-content">
+        <!-- === Медицинская карта === -->
+        <div class="tab-pane active" id="tab-info">
+          <h2 class="section-title">Основная информация</h2>
+          <div class="info-grid">
+            <div class="label">ФИО</div>
+            <div class="value">Иванов Иван Сергеевич</div>
+            <div class="label">Дата рождения</div>
+            <div class="value">12.03.1990</div>
+            <div class="label">Пол</div>
+            <div class="value">Мужской</div>
+            <div class="label">ИИН</div>
+            <div class="value">900312123456</div>
+            <div class="label">Телефон</div>
+            <div class="value">+7 (777) 123-45-67</div>
+            <div class="label">Email</div>
+            <div class="value">ivanov@example.com</div>
+            <div class="label">Город</div>
+            <div class="value">Алматы</div>
+          </div>
+          <h2 class="section-title">История пациента</h2>
+          <div class="info-section">
+            <h3>Хронические заболевания</h3>
+            <ul><li>Гипертония</li><li>Астма</li></ul>
+            <h3>Аллергии</h3>
+            <ul><li>Пенициллин</li></ul>
+            <h3>Прививки</h3>
+            <ul><li>COVID-19 — 2021</li><li>Грипп — 2022</li></ul>
+            <h3>Операции</h3>
+            <ul><li>Аппендэктомия — 2010</li></ul>
+            <h3>Обследования</h3>
+            <ul>
+              <li>Флюорография — без патологии (2023)</li>
+              <li>ЭКГ — синусовая аритмия (2024)</li>
+            </ul>
+          </div>
+        </div>
+        <!-- === Жалобы === -->
+        <div class="tab-pane" id="tab-complaints">
+          <div class="form-group">
+            <label for="complaint">Жалобы</label>
+            <textarea id="complaint" rows="4"></textarea>
+          </div>
+        </div>
+        <!-- === Диагноз === -->
+        <div class="tab-pane" id="tab-diagnosis">
+          <div class="form-group">
+            <label for="diagnosis">Диагноз</label>
+            <input type="text" id="diagnosis" placeholder="например, J00 — ОРВИ" />
+          </div>
+        </div>
+        <!-- === Назначения === -->
+        <div class="tab-pane" id="tab-assignments">
+          <div class="form-group">
+            <label for="assignText">Назначения</label>
+            <textarea id="assignText" rows="3"></textarea>
+          </div>
+        </div>
+        <!-- === Рецепты === -->
+        <div class="tab-pane" id="tab-prescriptions">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="presMed">Лекарство</label>
+              <input id="presMed" type="text" placeholder="Название лекарства" />
+            </div>
+            <div class="form-group">
+              <label for="presDose">Дозировка</label>
+              <input id="presDose" type="text" placeholder="500 мг, 1 таблетка" />
+            </div>
+            <div class="form-group">
+              <label for="presSchedule">Схема приёма</label>
+              <input id="presSchedule" type="text" placeholder="2 раза в день" />
+            </div>
+            <button id="addPrescriptionBtn" type="button">Добавить</button>
+          </div>
+          <div class="table-responsive" id="prescriptionsWrapper">
+            <table id="prescriptionsTable">
+              <thead>
+                <tr>
+                  <th>Лекарство</th>
+                  <th>Дозировка</th>
+                  <th>Схема приёма</th>
+                  <th>Действия</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <button id="saveBtn" class="save-btn">Сохранить</button>
+      </div>
+    </div>
+    <!-- Чат (отдельная панель) -->
+    <div class="chat-panel" id="chat-panel" style="display: none;">
+      <div class="chat-header">
+        <div class="title">Чат</div>
+        <button class="close-chat" id="closeChat">×</button>
+      </div>
+      <div id="msgList"></div>
+      <div class="chat-input">
+        <input id="msgInput" placeholder="Введите сообщение…" />
+        <button id="sendBtn">➤</button>
+      </div>
+    </div>
+  </div>
+  <script src="static/js/appointments.js"></script>
+</body>
+</html>

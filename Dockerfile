@@ -19,7 +19,10 @@ COPY --from=builder /app/telemed .
 # Копируем .env файл
 COPY .env .
 
-COPY --from=builder /app/static /root/static
+# Копируем шаблоны
+COPY --from=builder /app/templates /root/templates
+# Копируем статику
+COPY --from=builder /app/templates/static /root/static
 
 EXPOSE 8080
 
