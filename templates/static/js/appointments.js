@@ -4,6 +4,7 @@
 let apiBaseUrl;
 let apptID;
 let role;
+let patientDetails = null;
 
 // Global chat functions
 async function loadChat() {
@@ -38,6 +39,97 @@ async function loadChat() {
   }
 }
 
+// Load patient details from the API
+async function loadPatientDetails() {
+  try {
+    console.log('Loading patient details for appointment:', apptID);
+    const res = await fetch(`${apiBaseUrl}/api/appointments/${apptID}/details`);
+    if (!res.ok) {
+      console.error('Failed to load patient details:', res.status);
+      return;
+    }
+    
+    const data = await res.json();
+    console.log('Patient details loaded:', data);
+    patientDetails = data.patient;
+    
+    // Update the patient info in the UI
+    updatePatientInfoUI();
+  } catch (e) {
+    console.error('loadPatientDetails error:', e);
+  }
+}
+
+// Update the patient info section with data from the API
+function updatePatientInfoUI() {
+  if (!patientDetails) {
+    console.error('No patient details available');
+    return;
+  }
+  
+  console.log('Updating UI with patient details:', patientDetails);
+  
+  // Update basic patient info
+  document.querySelector('.info-grid').innerHTML = `
+    <div class="label">ФИО</div>
+    <div class="value">${patientDetails.full_name || 'Нет данных'}</div>
+    <div class="label">ИИН</div>
+    <div class="value">${patientDetails.iin || 'Нет данных'}</div>
+    <div class="label">Telegram ID</div>
+    <div class="value">${patientDetails.telegram_id || 'Нет данных'}</div>
+  `;
+  
+  // Update medical history
+  const historySection = document.querySelector('.info-section');
+  
+  // Medical conditions (chronic diseases)
+  const medicalHistory = patientDetails.medical_history || [];
+  const chronicHTML = medicalHistory.length > 0 
+    ? `<ul>${medicalHistory.map(item => `<li>${item.diagnosis} ${item.date ? `(с ${item.date})` : ''}</li>`).join('')}</ul>` 
+    : '<p>Нет данных</p>';
+  
+  // Allergies
+  const allergies = patientDetails.allergies || [];
+  const allergiesHTML = allergies.length > 0
+    ? `<ul>${allergies.map(item => `<li>${item.name}</li>`).join('')}</ul>`
+    : '<p>Нет данных</p>';
+  
+  // Vaccinations
+  const vaccinations = patientDetails.vaccinations || [];
+  const vaccinationsHTML = vaccinations.length > 0
+    ? `<ul>${vaccinations.map(item => `<li>${item.vaccine} — ${item.date ? new Date(item.date).getFullYear() : 'дата неизвестна'}</li>`).join('')}</ul>`
+    : '<p>Нет данных</p>';
+  
+  // Surgeries
+  const surgeries = patientDetails.surgeries || [];
+  const surgeriesHTML = surgeries.length > 0
+    ? `<ul>${surgeries.map(item => `<li>${item.procedure} — ${item.date ? new Date(item.date).getFullYear() : 'дата неизвестна'}</li>`).join('')}</ul>`
+    : '<p>Нет данных</p>';
+  
+  // Examinations
+  const examinations = patientDetails.examinations || [];
+  const examinationsHTML = examinations.length > 0
+    ? `<ul>${examinations.map(item => `<li>${item.exam} — ${item.result} ${item.date ? `(${new Date(item.date).getFullYear()})` : ''}</li>`).join('')}</ul>`
+    : '<p>Нет данных</p>';
+  
+  historySection.innerHTML = `
+    <h3>Хронические заболевания</h3>
+    ${chronicHTML}
+    
+    <h3>Аллергии</h3>
+    ${allergiesHTML}
+    
+    <h3>Прививки</h3>
+    ${vaccinationsHTML}
+    
+    <h3>Операции</h3>
+    ${surgeriesHTML}
+    
+    <h3>Обследования</h3>
+    ${examinationsHTML}
+  `;
+}
+
 ;(async function() {
   // Параметры из URL
   const params = new URLSearchParams(location.search);
@@ -46,6 +138,9 @@ async function loadChat() {
   apiBaseUrl = `${location.protocol}//${location.hostname}:8080`;
   const wsUrl = `${location.protocol.replace('http','ws')}//` +
                 `${location.hostname}:8080/ws?appointment_id=${apptID}&role=${role}`;
+  
+  // Always load patient details regardless of role
+  await loadPatientDetails();
 
   // Initialize chat panel
   const chatPanel = document.getElementById('chat-panel');
@@ -218,11 +313,144 @@ document.querySelectorAll('.tab-link').forEach(btn => {
       p.classList.remove('active')
     );
     btn.classList.add('active');
-    document
-      .getElementById('tab-' + btn.dataset.tab)
-      .classList.add('active');
+    const tabId = 'tab-' + btn.dataset.tab;
+    document.getElementById(tabId).classList.add('active');
+    
+    // Load diagnoses when the diagnosis tab is clicked
+    if (btn.dataset.tab === 'diagnosis') {
+      loadDiagnoses();
+    }
   });
 });
+
+// ===== Загрузка и обработка диагнозов =====
+let diagnosesData = [];
+
+// Load diagnoses when the page loads, not just when the tab is clicked
+document.addEventListener('DOMContentLoaded', () => {
+  // Load diagnoses with a slight delay to ensure all DOM elements are ready
+  setTimeout(() => {
+    loadDiagnoses();
+  }, 500);
+});
+
+async function loadDiagnoses() {
+  const diagnosesListEl = document.getElementById('diagnosesList');
+  
+  if (!diagnosesListEl) return; // Exit if element doesn't exist yet
+  
+  try {
+    // Check if we already have diagnoses loaded
+    if (diagnosesData.length > 0) {
+      renderDiagnosesList(diagnosesData);
+      return;
+    }
+    
+    const response = await fetch(`${apiBaseUrl}/api/diagnoses`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data.success && Array.isArray(data.data)) {
+      diagnosesData = data.data;
+      renderDiagnosesList(diagnosesData);
+    } else {
+      diagnosesListEl.innerHTML = '<div class="loading">Ошибка при загрузке диагнозов</div>';
+    }
+  } catch (error) {
+    console.error('Error loading diagnoses:', error);
+    diagnosesListEl.innerHTML = '<div class="loading">Ошибка при загрузке диагнозов</div>';
+  }
+}
+
+function renderDiagnosesList(diagnoses) {
+  const diagnosesListEl = document.getElementById('diagnosesList');
+  
+  if (!diagnosesListEl) return; // Safety check
+  
+  if (!diagnoses || diagnoses.length === 0) {
+    diagnosesListEl.innerHTML = '<div class="loading">Нет доступных диагнозов</div>';
+    return;
+  }
+  
+  let html = '';
+  diagnoses.forEach(diagnosis => {
+    html += `
+      <div class="diagnosis-item" data-id="${diagnosis.id}" data-code="${diagnosis.code}" data-name="${diagnosis.name}">
+        <span class="code">${diagnosis.code}</span>
+        <span class="name">${diagnosis.name}</span>
+      </div>
+    `;
+  });
+  
+  diagnosesListEl.innerHTML = html;
+  
+  // Add click handlers to diagnosis items
+  document.querySelectorAll('.diagnosis-item').forEach(item => {
+    item.addEventListener('click', () => {
+      selectDiagnosis(item);
+    });
+  });
+}
+
+function selectDiagnosis(item) {
+  // Get diagnosis data
+  const id = item.getAttribute('data-id');
+  const code = item.getAttribute('data-code');
+  const name = item.getAttribute('data-name');
+  
+  // Store the diagnosis value
+  const diagnosisInput = document.getElementById('diagnosis');
+  if (diagnosisInput) {
+    diagnosisInput.value = `${code} — ${name}`;
+  }
+  
+  // Update the display
+  const diagnosisDisplay = document.getElementById('diagnosisDisplay');
+  if (diagnosisDisplay) {
+    diagnosisDisplay.textContent = `${code} — ${name}`;
+  }
+  
+  // Show the selected diagnosis section
+  const selectedDiagnosis = document.getElementById('selectedDiagnosis');
+  if (selectedDiagnosis) {
+    selectedDiagnosis.style.display = 'block';
+  }
+  
+  // Highlight the selected item
+  document.querySelectorAll('.diagnosis-item').forEach(i => {
+    i.classList.remove('selected');
+  });
+  item.classList.add('selected');
+}
+
+// Search functionality for diagnoses - updated for real-time filtering
+const diagnosisSearchInput = document.getElementById('diagnosisSearch');
+if (diagnosisSearchInput) {
+  diagnosisSearchInput.addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase();
+    
+    if (!diagnosesData.length) return;
+    
+    const filteredDiagnoses = diagnosesData.filter(diagnosis => 
+      diagnosis.code.toLowerCase().includes(searchTerm) ||
+      diagnosis.name.toLowerCase().includes(searchTerm)
+    );
+    
+    renderDiagnosesList(filteredDiagnoses);
+    
+    // If search is empty, clear selection
+    if (!searchTerm) {
+      const selectedDiagnosis = document.getElementById('selectedDiagnosis');
+      if (selectedDiagnosis) {
+        selectedDiagnosis.style.display = 'none';
+      }
+    }
+  });
+}
 
 // ===== Логика «Рецептов» =====
 const addBtn   = document.getElementById('addPrescriptionBtn');
@@ -262,9 +490,11 @@ addBtn.addEventListener('click', () => {
 
 // ===== Сохранение приёма =====
 document.getElementById('saveBtn').addEventListener('click', async () => {
+  const diagnosisValue = document.getElementById('diagnosis').value;
+  
   const data = {
     complaints: document.getElementById('complaint').value,
-    diagnosis:  document.getElementById('diagnosis').value,
+    diagnosis:  diagnosisValue,
     assignment: document.getElementById('assignText').value,
     prescriptions: Array.from(
       document.querySelectorAll('#prescriptionsTable tbody tr')
@@ -274,10 +504,21 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
       schedule: r.children[2].textContent
     }))
   };
-  await fetch(`/api/appointments/${apptID}/complete`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
-  alert('Приём сохранён и отправлен пациенту');
+  
+  try {
+    const response = await fetch(`/api/appointments/${apptID}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    
+    if (response.ok) {
+      alert('Приём сохранён и отправлен пациенту');
+    } else {
+      alert('Ошибка при сохранении: ' + (await response.text()));
+    }
+  } catch (error) {
+    console.error('Error saving appointment:', error);
+    alert('Ошибка при сохранении приёма');
+  }
 });

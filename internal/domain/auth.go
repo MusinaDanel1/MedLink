@@ -13,8 +13,10 @@ type User struct {
 
 type AuthRepository interface {
 	GetByIIN(iin string) (*User, error)
+	GetByID(id string) (*User, error)
 }
 
 type AuthService interface {
-	Login(iin, password string, w http.ResponseWriter) error
+	Login(iin, password string, w http.ResponseWriter) (string, error)
+	GetUserByID(id string) (*User, error)
 }

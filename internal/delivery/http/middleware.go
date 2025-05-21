@@ -2,12 +2,10 @@ package http
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -21,96 +19,58 @@ const (
 
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Set JSON content type for error responses
-		w.Header().Set("Content-Type", "application/json")
-
-		// Get token from Authorization header or cookie
-		var tokenStr string
 		authHeader := r.Header.Get("Authorization")
-
-		if authHeader != "" {
-			if !strings.HasPrefix(authHeader, "Bearer ") {
-				w.WriteHeader(http.StatusUnauthorized)
-				json.NewEncoder(w).Encode(map[string]string{"error": "Invalid authorization format"})
-				return
-			}
-			tokenStr = strings.TrimPrefix(authHeader, "Bearer ")
-		} else {
-			// Try to get token from cookie
+		if authHeader == "" {
 			cookie, err := r.Cookie("token")
 			if err != nil {
-				w.WriteHeader(http.StatusUnauthorized)
-				json.NewEncoder(w).Encode(map[string]string{"error": "No authentication token provided"})
+				http.Error(w, "Missing token", http.StatusUnauthorized)
 				return
 			}
-			tokenStr = cookie.Value
+			authHeader = "Bearer " + cookie.Value
+		}
+		if !strings.HasPrefix(authHeader, "Bearer ") {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
 		}
 
-		// Validate token
+		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
 		secret := os.Getenv("JWT_SECRET")
 		if secret == "" {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"error": "Server configuration error"})
+			http.Error(w, "Missing JWT secret in environment variables", http.StatusInternalServerError)
 			return
 		}
 
 		token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
-			// Validate signing method
-			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
-			}
 			return []byte(secret), nil
 		})
 
-		if err != nil {
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]string{"error": "Invalid token"})
-			return
-		}
-
-		if !token.Valid {
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]string{"error": "Token is not valid"})
+		if err != nil || !token.Valid {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]string{"error": "Invalid token claims"})
+			http.Error(w, "Invalid token claims", http.StatusUnauthorized)
 			return
 		}
 
-		// Validate required claims
-		userID, ok := claims["user_id"].(string)
-		if !ok || userID == "" {
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]string{"error": "User ID missing in token"})
+		userIDRaw, ok := claims["user_id"]
+		if !ok {
+			http.Error(w, "User ID missing in token", http.StatusUnauthorized)
 			return
 		}
+		userID := fmt.Sprintf("%v", userIDRaw)
 
-		role, ok := claims["role"].(string)
-		if !ok || role == "" {
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]string{"error": "Role missing in token"})
+		roleRaw, ok := claims["role"]
+		if !ok {
+			http.Error(w, "Role missing in token", http.StatusUnauthorized)
 			return
 		}
+		role := fmt.Sprintf("%v", roleRaw)
 
-		// Check token expiration
-		if exp, ok := claims["exp"].(float64); ok {
-			if time.Now().Unix() > int64(exp) {
-				w.WriteHeader(http.StatusUnauthorized)
-				json.NewEncoder(w).Encode(map[string]string{"error": "Token has expired"})
-				return
-			}
-		}
-
-		// Set claims in context
 		ctx := context.WithValue(r.Context(), UserIDKey, userID)
 		ctx = context.WithValue(ctx, RoleKey, role)
-
-		// Clear the content type header for the next handler
-		w.Header().Del("Content-Type")
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

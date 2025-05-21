@@ -1,21 +1,177 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <title>Панель врача</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f0fdf4;
-      padding: 40px;
-    }
-    h1 {
-      color: #28a745;
-    }
-  </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,
+        initial-scale=1, shrink-to-fit=no"/>
+  <title>Кабинет врача</title>
+  <link rel="stylesheet" href="/static/css/doctor.css"/>
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"/>
+  <link
+    href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.0/main.min.css"
+    rel="stylesheet"/>
 </head>
 <body>
-  <h1>Добро пожаловать, врач!</h1>
-  <p>Здесь вы можете просматривать и вести приёмы.</p>
+<nav class="navbar navbar-expand-lg shadow-sm">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="#">Кабинет врача</a>
+    <div class="collapse navbar-collapse">
+      <ul class="navbar-nav me-auto"></ul>
+      <span class="navbar-text">
+        {{ if .Doctor }}{{ .Doctor.Name }}{{ else }}Загрузка...{{ end }}
+      </span>
+    </div>
+  </div>
+</nav>
+<div class="container-fluid">
+  <div class="row g-0">
+    <aside class="col-md-3 sidebar p-3">
+      <div class="doctor-info">
+        <h5 class="mt-2">{{ if .Doctor }}{{ .Doctor.Name }}{{ else }}Загрузка...{{ end }}</h5>
+        <p class="text-muted">{{ if .Doctor }}{{ .Doctor.Specialization }}{{ else }}Загрузка...{{ end }}</p>
+      </div>
+      <div class="d-grid gap-2 mb-3">
+        <button id="btnNewSchedule"
+                class="btn btn-primary"
+                data-bs-toggle="modal"
+                data-bs-target="#scheduleModal">
+          Новый график
+        </button>
+        <button id="btnToggleAll"
+                class="btn btn-outline-secondary">
+          Показать/Скрыть все
+        </button>
+      </div>
+      <div class="services-list">
+        <h6>Услуги</h6>
+        <ul id="servicesList"
+            class="list-group list-group-flush">
+          <!-- сюда подгрузятся услуги -->
+        </ul>
+      </div>
+    </aside>
+    <main class="col-md-9 p-3">
+      <div id="calendar"></div>
+    </main>
+  </div>
+</div>
+
+<!-- Modal: Новый график -->
+<div class="modal fade" id="scheduleModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form id="scheduleForm" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Новый график</h5>
+        <button type="button"
+                class="btn-close"
+                data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden"
+               id="doctorId"
+               value="{{ if .Doctor }}{{ .Doctor.ID }}{{ else }}1{{ end }}"/>
+        <div class="mb-3">
+          <label class="form-label">Услуга</label>
+          <select id="serviceId"
+                  class="form-select" required></select>
+          <div class="form-text">Выберите услугу, которую вы будете оказывать в этом графике</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Начало</label>
+          <input type="datetime-local"
+                 id="startTime"
+                 class="form-control"
+                 required/>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Конец</label>
+          <input type="datetime-local"
+                 id="endTime"
+                 class="form-control"
+                 required/>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Цвет</label>
+          <input type="color"
+                 id="color"
+                 value="#3788d8"
+                 class="form-control form-control-color"/>
+          <div class="form-text">Выберите цвет для отображения графика в календаре</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" 
+                class="btn btn-outline-secondary"
+                data-bs-dismiss="modal">
+          Отмена
+        </button>
+        <button type="submit"
+                class="btn btn-primary">
+          Создать
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Запись на приём -->
+<div class="modal fade" id="apptModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form id="apptForm" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Запись на приём</h5>
+        <button type="button"
+                class="btn-close"
+                data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden"
+               id="apptScheduleId"/>
+        <div class="mb-3">
+          <label class="form-label">Пациент</label>
+          <div class="input-group">
+            <select id="patientId"
+                    class="form-select"></select>
+            <button type="button"
+                    class="btn btn-outline-secondary"
+                    id="addPatient">
+              +
+            </button>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Начало</label>
+          <input type="datetime-local"
+                 id="apptStart"
+                 class="form-control"
+                 required/>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Конец</label>
+          <input type="datetime-local"
+                 id="apptEnd"
+                 class="form-control"
+                 required/>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit"
+                class="btn btn-success">
+          Записать
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script
+  src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js">
+</script>
+<script
+  src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.0/main.min.js">
+</script>
+<script src="/static/js/doctor.js"></script>
 </body>
 </html>

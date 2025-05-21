@@ -28,3 +28,23 @@ func (r *PatientRepository) RegisterPatient(fullName, iin string, telegramID int
 	_, err := r.db.Exec(`INSERT INTO patients (full_name, iin, telegram_id) VALUES ($1, $2, $3)`, fullName, iin, telegramID)
 	return err
 }
+
+func (r *PatientRepository) GetAll() ([]domain.Patient, error) {
+	query := `SELECT id, full_name, iin, telegram_id FROM patients ORDER BY id`
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var patients []domain.Patient
+	for rows.Next() {
+		var p domain.Patient
+		if err := rows.Scan(&p.ID, &p.FullName, &p.IIN, &p.TelegramID); err != nil {
+			return nil, err
+		}
+		patients = append(patients, p)
+	}
+
+	return patients, nil
+}

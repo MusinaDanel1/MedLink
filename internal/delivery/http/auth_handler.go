@@ -2,6 +2,7 @@ package http
 
 import (
 	"encoding/json"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -10,11 +11,17 @@ import (
 )
 
 type AuthHandler struct {
-	authService domain.AuthService
+	authService   domain.AuthService
+	doctorService domain.DoctorService
 }
 
 func NewAuthHandler(service domain.AuthService) *AuthHandler {
 	return &AuthHandler{authService: service}
+}
+
+// SetDoctorService sets the doctor service
+func (h *AuthHandler) SetDoctorService(service domain.DoctorService) {
+	h.doctorService = service
 }
 
 func (h *AuthHandler) ShowLoginForm(w http.ResponseWriter, r *http.Request) {
@@ -23,7 +30,7 @@ func (h *AuthHandler) ShowLoginForm(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	htmlPath := filepath.Join(execPath, "static", "login.html")
+	htmlPath := filepath.Join(execPath, "templates", "login.html")
 
 	log.Println("Looking for HTML file at:", htmlPath)
 
@@ -41,44 +48,38 @@ type loginRequest struct {
 	Password string `json:"password"`
 }
 
-type loginResponse struct {
-	Token   string `json:"token,omitempty"`
-	Error   string `json:"error,omitempty"`
-	Message string `json:"message,omitempty"`
-}
-
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req loginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(loginResponse{Error: "Invalid request format"})
+		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
+	log.Printf("Received iin: %s, password: %s\n", req.IIN, req.Password)
 
-	// Set JSON content type for all responses
-	w.Header().Set("Content-Type", "application/json")
-
-	if err := h.authService.Login(req.IIN, req.Password, w); err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(loginResponse{Error: err.Error()})
-		return
-	}
-
-	// Get the token from cookie
-	cookie, err := r.Cookie("token")
+	token, err := h.authService.Login(req.IIN, req.Password, w)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(loginResponse{Error: "Token not found"})
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	// Send success response
+	// Set content type and return JSON response
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(loginResponse{
-		Token:   cookie.Value,
-		Message: "Login successful",
-	})
+
+	// Create response with token
+	resp := struct {
+		Success bool   `json:"success"`
+		Token   string `json:"token"`
+	}{
+		Success: true,
+		Token:   token,
+	}
+
+	// Encode response as JSON
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (h *AuthHandler) ProtectedRoute(w http.ResponseWriter, r *http.Request) {
@@ -114,21 +115,7 @@ func (h *AuthHandler) AdminDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	execPath, err := os.Getwd()
-	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
-
-	htmlPath := filepath.Join(execPath, "static", "admin.html")
-	log.Printf("Looking for admin.html at: %s", htmlPath)
-
-	if _, err := os.Stat(htmlPath); os.IsNotExist(err) {
-		log.Printf("Admin file not found at: %s", htmlPath)
-		http.Error(w, "Admin page not found", http.StatusNotFound)
-		return
-	}
-
+	htmlPath := filepath.Join("templates", "admin.html")
 	http.ServeFile(w, r, htmlPath)
 }
 
@@ -139,6 +126,74 @@ func (h *AuthHandler) DoctorDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	htmlPath := filepath.Join("static", "doctor.html")
-	http.ServeFile(w, r, htmlPath)
+	userID, ok := r.Context().Value(UserIDKey).(string)
+	if !ok || userID == "" {
+		http.Error(w, "User ID not found", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("Doctor dashboard accessed by user ID: %s", userID)
+
+	// Parse the template
+	tmpl, err := template.ParseFiles(filepath.Join("templates", "doctor.html"))
+	if err != nil {
+		log.Printf("Error parsing template: %v", err)
+		http.Error(w, "Error loading page", http.StatusInternalServerError)
+		return
+	}
+
+	// Data structure for the template
+	data := struct {
+		Doctor struct {
+			ID             int
+			Name           string
+			Specialization string
+		}
+	}{}
+
+	// If we have the doctor service, try to get real doctor data
+	if h.doctorService != nil {
+		// First get the user from the database to find their IIN
+		user, err := h.authService.GetUserByID(userID)
+		if err != nil {
+			log.Printf("Error fetching user with ID %s: %v", userID, err)
+			http.Error(w, "Error fetching user data", http.StatusInternalServerError)
+			return
+		}
+
+		// Now get the doctor by IIN
+		log.Println("Getting doctor by IIN:", user.IIN)
+		doctor, err := h.doctorService.GetDoctorByIIN(user.IIN)
+		if err == nil {
+			data.Doctor.ID = doctor.ID
+			data.Doctor.Name = doctor.FullName
+			log.Println("Doctor found:", doctor)
+
+			// Get specialization name
+			specializations, err := h.doctorService.GetAllSpecializations()
+			if err == nil {
+				for _, s := range specializations {
+					if s.ID == doctor.SpecializationID {
+						data.Doctor.Specialization = s.Name
+						break
+					}
+				}
+			}
+		} else {
+			log.Printf("Error fetching doctor data for user %s with IIN %s: %v", userID, user.IIN, err)
+			http.Error(w, "Doctor information not found", http.StatusNotFound)
+			return
+		}
+	} else {
+		log.Printf("Doctor service not available")
+		http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Execute the template with the data
+	if err := tmpl.Execute(w, data); err != nil {
+		log.Printf("Error executing template: %v", err)
+		http.Error(w, "Error rendering page", http.StatusInternalServerError)
+		return
+	}
 }

@@ -1,26 +1,78 @@
 package usecase
 
-import "telemed/internal/domain"
+import (
+	"errors"
+	"telemed/internal/domain"
+	"time"
+)
+
+var ErrSlotBooked = errors.New("timeslot already booked")
 
 type AppointmentService struct {
-	repo domain.AppointmentRepository
+	SRepo    domain.ScheduleRepository
+	TRepo    domain.TimeslotRepository
+	repo     domain.AppointmentRepository
+	videoSvc *VideoService
 }
 
-func NewAppointmentService(r domain.AppointmentRepository) *AppointmentService {
-	return &AppointmentService{repo: r}
+func NewAppointmentService(r domain.AppointmentRepository, sr domain.ScheduleRepository,
+	tr domain.TimeslotRepository, vs *VideoService) *AppointmentService {
+	return &AppointmentService{repo: r, SRepo: sr, TRepo: tr, videoSvc: vs}
 }
 
-func (s AppointmentService) BookAppointment(patientID, doctorID, serviceID, timeslotID int) error {
-	err := s.repo.CreateAppointment(domain.Appointment{
-		PatientID:  patientID,
-		DoctorID:   doctorID,
-		ServiceID:  serviceID,
-		TimeSlotID: timeslotID,
-	})
-
+func (u *AppointmentService) BookAppointment(
+	scheduleID, patientID int,
+	start, end time.Time,
+) error {
+	sch, err := u.SRepo.GetByID(scheduleID)
 	if err != nil {
 		return err
 	}
+	ts, err := u.TRepo.GetOrCreate(scheduleID, start, end)
+	if err != nil {
+		return err
+	}
+	if ts.IsBooked {
+		return ErrSlotBooked
+	}
+	ap := domain.Appointment{
+		DoctorID:   sch.DoctorID,
+		ServiceID:  sch.ServiceID,
+		TimeslotID: ts.ID,
+		PatientID:  patientID,
+		Status:     "Записан",
+	}
+	if err := u.repo.CreateAppointment(ap); err != nil {
+		return err
+	}
+	return u.TRepo.MarkBooked(ts.ID, true)
+}
 
-	return s.repo.MarkTimeslotAsBooked(timeslotID)
+func (s AppointmentService) GetAppointmentByID(id int) (*domain.Appointment, error) {
+	return s.repo.GetAppointmentByID(id)
+}
+
+func (s AppointmentService) GetPatientDetailsByID(patientID int) (map[string]interface{}, error) {
+	return s.repo.GetPatientDetailsByID(patientID)
+}
+
+func (s AppointmentService) CompleteAppointment(details domain.AppointmentDetails) error {
+	return s.repo.CompleteAppointment(details)
+}
+
+func (u *AppointmentService) ListBySchedules(scheduleIDs []int) ([]domain.Appointment, error) {
+	return u.repo.ListBySchedules(scheduleIDs)
+}
+
+func (u *AppointmentService) AcceptAppointment(apptID int) (string, error) {
+	// 1) Меняем статус в appointments
+	if err := u.repo.UpdateStatus(apptID, "Принят"); err != nil {
+		return "", err
+	}
+	// 2) Создаём видеосессию
+	vs, err := u.videoSvc.StartSession(apptID)
+	if err != nil {
+		return "", err
+	}
+	return vs.VideoURL, nil
 }

@@ -67,16 +67,105 @@ func main() {
 		log.Fatal("Ошибка при вставке врача:", err)
 	}
 
-	fmt.Println("Админ и врач успешно добавлены в базу данных!")
-
-	bot, err := tgbotapi.NewBotAPI(token)
+	// Add sample services for the doctor
+	var doctorID int
+	err = db.QueryRow("SELECT id FROM doctors WHERE full_name = $1", "Марина Цветаева").Scan(&doctorID)
 	if err != nil {
-		log.Fatal("Ошибка инициализации Telegram-бота: ", err)
+		log.Printf("Failed to find doctor 'Марина Цветаева': %v", err)
+		// Let's create the doctor if not found
+		if err == sql.ErrNoRows {
+			log.Printf("Creating doctor 'Марина Цветаева'...")
+			_, err = db.Exec(
+				"INSERT INTO doctors (full_name, specialization_id) VALUES ($1, $2) RETURNING id",
+				"Марина Цветаева", 1,
+			)
+			if err != nil {
+				log.Printf("Failed to create doctor: %v", err)
+			} else {
+				// Try again to get the ID
+				err = db.QueryRow("SELECT id FROM doctors WHERE full_name = $1", "Марина Цветаева").Scan(&doctorID)
+				if err != nil {
+					log.Printf("Still couldn't get doctor ID: %v", err)
+				} else {
+					log.Printf("Successfully created doctor with ID: %d", doctorID)
+				}
+			}
+		}
 	}
 
-	bot.Debug = true
+	if doctorID > 0 {
+		log.Printf("Found doctor with ID: %d", doctorID)
 
-	log.Printf("Запущен бот: %s", bot.Self.UserName)
+		// Check existing services first
+		rows, err := db.Query("SELECT id, name FROM services WHERE doctor_id = $1", doctorID)
+		if err != nil {
+			log.Printf("Error checking existing services: %v", err)
+		} else {
+			var existingServices []string
+			for rows.Next() {
+				var id int
+				var name string
+				if err := rows.Scan(&id, &name); err != nil {
+					log.Printf("Error scanning service: %v", err)
+				} else {
+					existingServices = append(existingServices, fmt.Sprintf("%d: %s", id, name))
+				}
+			}
+			rows.Close()
+
+			if len(existingServices) > 0 {
+				log.Printf("Doctor already has services: %v", existingServices)
+			} else {
+				log.Printf("No existing services found for doctor ID %d, adding new ones", doctorID)
+			}
+		}
+
+		serviceQuery := `INSERT INTO services (doctor_id, name) 
+		                 VALUES ($1, $2)
+		                 ON CONFLICT (doctor_id, name) DO NOTHING`
+
+		// Add some sample services for this doctor
+		services := []string{
+			"Консультация",
+			"Осмотр",
+			"Диагностика",
+			"Плановый прием",
+		}
+
+		for _, service := range services {
+			result, err := db.Exec(serviceQuery, doctorID, service)
+			if err != nil {
+				log.Printf("Ошибка при добавлении услуги '%s': %v", service, err)
+			} else {
+				affected, _ := result.RowsAffected()
+				if affected > 0 {
+					log.Printf("Услуга '%s' добавлена для врача ID %d", service, doctorID)
+				} else {
+					log.Printf("Услуга '%s' уже существует для врача ID %d", service, doctorID)
+				}
+			}
+		}
+	} else {
+		log.Printf("Failed to get valid doctor ID")
+	}
+
+	fmt.Println("Админ и врач успешно добавлены в базу данных!")
+
+	var bot *tgbotapi.BotAPI
+	var botHandler *telegram.BotHandler
+
+	// Skip Telegram bot initialization if using dummy token
+	log.Printf("Используем TELEGRAM_BOT_TOKEN=%q", token)
+	if token != "dummy_token" {
+		bot, err = tgbotapi.NewBotAPI(token)
+		log.Println("BOT STARTING!!!!", bot)
+		if err != nil {
+			log.Fatal("Ошибка инициализации Telegram-бота: ", err)
+		}
+
+		bot.Debug = true
+		log.Printf("Запущен бот: %s", bot.Self.UserName)
+	}
 
 	// Initialize repositories
 	authRepo := postgres.NewAuthRepository(db)
@@ -85,35 +174,52 @@ func main() {
 	doctorRepo := postgres.NewDoctorRepository(db)
 	appointmentRepo := postgres.NewAppointmentRepository(db)
 	msgRepo := postgres.NewMessageRepository(db)
+	scheduleRepo := postgres.NewScheduleRepo(db)
+	timeslotRepo := postgres.NewTimeslotRepo(db)
+	schedRepo := postgres.NewScheduleRepo(db)
+	videoRepo := postgres.NewVideoSessionRepository(db)
 
 	// Initialize services
+	videoSvc := usecase.NewVideoService(videoRepo)
 	authService := usecase.NewAuthService(authRepo)
 	doctorService := usecase.NewDoctorService(doctorRepo)
 	adminService := usecase.NewAdminService(adminRepo, doctorService)
 	patientService := usecase.NewPatientService(patientRepo)
-	appointmentService := usecase.NewAppointmentService(appointmentRepo)
+	appointmentService := usecase.NewAppointmentService(appointmentRepo, scheduleRepo, timeslotRepo, videoSvc)
 	msgService := usecase.NewMessageService(msgRepo)
 	openaiService := usecase.New(openaiKey)
+	schedSvc := usecase.NewScheduleService(schedRepo)
+
 	// Initialize handlers
 	authHandler := http1.NewAuthHandler(authService)
+	authHandler.SetDoctorService(doctorService)
 	adminHandler := http1.NewAdminHandler(adminService, doctorService)
-	botHandler := telegram.NewBotHandler(bot, patientService, doctorService, appointmentService, openaiService)
+	doctorHandler := http1.NewDoctorHandler(doctorService)
+	doctorHandler.SetPatientService(patientService)
+	schedH := http1.NewScheduleHandler(schedSvc, timeslotRepo)
 
-	msgHandler := http1.NewMessageHandler(msgService)
+	if bot != nil {
+		botHandler = telegram.NewBotHandler(bot, patientService, doctorService, appointmentService, openaiService)
+	}
 
-	u := tgbotapi.NewUpdate(0)
-	u.Timeout = 60
-	updates := bot.GetUpdatesChan(u)
-	mux := http.NewServeMux()
+	msgHandler := http1.NewMessageHandler(msgService, appointmentService)
+	apptHandler := http1.NewAppointmentHandler(appointmentService)
 
 	// Run bot updates handling in a separate goroutine
-	go func() {
-		for update := range updates {
-			botHandler.HandleUpdate(update)
-		}
-	}()
+	if bot != nil {
+		u := tgbotapi.NewUpdate(0)
+		u.Timeout = 60
+		updates := bot.GetUpdatesChan(u)
+
+		go func() {
+			for update := range updates {
+				botHandler.HandleUpdate(update)
+			}
+		}()
+	}
 
 	// Auth routes
+	mux := http.NewServeMux()
 	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			authHandler.ShowLoginForm(w, r)
@@ -156,22 +262,76 @@ func main() {
 	r.GET("/appointment.html", func(c *gin.Context) {
 		c.File("./templates/appointment.html")
 	})
+	// Debugging page
+	r.GET("/debug.html", func(c *gin.Context) {
+		c.File("./templates/debug.html")
+	})
 	// 3) Раздаём остальную статику из под /static
 	r.Static("/static", "./static")
+
+	// Add login routes to Gin server
+	r.GET("/login", func(c *gin.Context) {
+		authHandler.ShowLoginForm(c.Writer, c.Request)
+	})
+	r.POST("/login", func(c *gin.Context) {
+		authHandler.Login(c.Writer, c.Request)
+	})
+
+	// Add protected and admin routes to Gin
+	r.GET("/protected", func(c *gin.Context) {
+		http1.AuthMiddleware(http.HandlerFunc(authHandler.ProtectedRoute)).ServeHTTP(c.Writer, c.Request)
+	})
+	r.GET("/admin-dashboard", func(c *gin.Context) {
+		http1.AuthMiddleware(http.HandlerFunc(authHandler.AdminDashboard)).ServeHTTP(c.Writer, c.Request)
+	})
+	r.Any("/admin/register", func(c *gin.Context) {
+		http1.AuthMiddleware(http.HandlerFunc(adminHandler.RegisterUser)).ServeHTTP(c.Writer, c.Request)
+	})
+	r.Any("/admin/block", func(c *gin.Context) {
+		http1.AuthMiddleware(http.HandlerFunc(adminHandler.BlockUser)).ServeHTTP(c.Writer, c.Request)
+	})
+	r.Any("/admin/unblock", func(c *gin.Context) {
+		http1.AuthMiddleware(http.HandlerFunc(adminHandler.UnblockUser)).ServeHTTP(c.Writer, c.Request)
+	})
+	r.Any("/admin/delete", func(c *gin.Context) {
+		http1.AuthMiddleware(http.HandlerFunc(adminHandler.DeleteUser)).ServeHTTP(c.Writer, c.Request)
+	})
+	r.GET("/admin/users", func(c *gin.Context) {
+		http1.AuthMiddleware(http.HandlerFunc(adminHandler.GetAllUsers)).ServeHTTP(c.Writer, c.Request)
+	})
+	r.GET("/admin/specializations", func(c *gin.Context) {
+		http1.AuthMiddleware(http.HandlerFunc(adminHandler.GetSpecializations)).ServeHTTP(c.Writer, c.Request)
+	})
+	r.GET("/doctor-dashboard", func(c *gin.Context) {
+		http1.AuthMiddleware(http.HandlerFunc(authHandler.DoctorDashboard)).ServeHTTP(c.Writer, c.Request)
+	})
+
 	r.GET("/api/appointments/:id/messages", msgHandler.List)
 	r.POST("/api/appointments/:id/messages", msgHandler.Create)
+	r.GET("/api/appointments/:id/details", apptHandler.GetAppointmentDetails)
+	r.POST("/api/appointments/:id/complete", apptHandler.CompleteAppointment)
+	r.PUT("/api/appointments/:id/accept", apptHandler.AcceptAppointment)
+	r.POST("/api/appointments", apptHandler.BookAppointment)
+	r.GET("/api/appointments", apptHandler.ListBySchedules)
+	r.GET("/api/diagnoses", doctorHandler.GetAllDiagnoses)
+	r.GET("/api/services", doctorHandler.GetAllServices)
+	r.POST("/api/services", doctorHandler.CreateService)
+	r.GET("/api/patients", doctorHandler.GetAllPatients)
+	r.GET("/api/doctors/:id", doctorHandler.GetDoctorByID)
+	r.GET("/api/doctors", doctorHandler.GetAllDoctors)
+	r.GET("/api/schedules", schedH.GetSchedules)
+	r.POST("/api/schedules", schedH.CreateSchedule)
 
-	// Start Gin server in a goroutine on port 8080
-	go func() {
-		if err := r.Run(":8080"); err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	// Start HTTP server on port 8081
-	port := "8081" // Changed from 8080 to 8081
-	log.Printf("HTTP Server starting at http://localhost:%s", port)
-	if err := http.ListenAndServe(":"+port, mux); err != nil {
+	// Start Gin server on port 8080
+	log.Printf("Server starting at http://localhost:8080")
+	if err := r.Run(":8080"); err != nil {
 		log.Fatal(err)
 	}
+
+	// This code is now unreachable since we're running everything on the Gin server
+	// port := "8081" // Changed from 8080 to 8081
+	// log.Printf("HTTP Server starting at http://localhost:%s", port)
+	// if err := http.ListenAndServe(":"+port, mux); err != nil {
+	// 	log.Fatal(err)
+	// }
 }

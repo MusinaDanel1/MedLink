@@ -3,6 +3,7 @@ package telegram
 import (
 	"strconv"
 	"strings"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -195,7 +196,7 @@ func (h *BotHandler) handleServiceSelected(chatID int64, data string) {
 		rows = append(rows,
 			tgbotapi.NewInlineKeyboardRow(
 				tgbotapi.NewInlineKeyboardButtonData(
-					t.AppointmentTime.Format("02.01.2006 15:04"),
+					t.StartTime.Format("02.01.2006 15:04"),
 					"timeslot_"+strconv.Itoa(t.ID),
 				),
 			),
@@ -220,7 +221,7 @@ func (h *BotHandler) handleTimeslotSelected(chatID int64, data string) {
 		),
 	) {
 		if t.ID == tsID {
-			h.temp[chatID]["timeslot_time"] = t.AppointmentTime.Format("02.01.2006 15:04")
+			h.temp[chatID]["timeslot_time"] = t.StartTime.Format("02.01.2006 15:04")
 			break
 		}
 	}
@@ -258,9 +259,27 @@ func (h *BotHandler) handleBookingConfirm(chatID int64, ok bool) {
 	}
 	docID := mustAtoi(h.temp[chatID]["doctor_id"])
 	tsID := mustAtoi(h.temp[chatID]["timeslot_id"])
-	serviceID := mustAtoi(h.temp[chatID]["service_id"])
 
-	if err := h.appointment.BookAppointment(patientID, docID, serviceID, tsID); err != nil {
+	// First get the timeslot to access its schedule ID and times
+	slots, err := h.doctor.GetAvailableTimeSlots(docID)
+	if err != nil {
+		h.bot.Send(tgbotapi.NewMessage(chatID, "Ошибка при получении данных слота."))
+		return
+	}
+
+	// Find the selected timeslot
+	var scheduleID int
+	var startTime, endTime time.Time
+	for _, slot := range slots {
+		if slot.ID == tsID {
+			scheduleID = slot.ScheduleID
+			startTime = slot.StartTime
+			endTime = slot.EndTime
+			break
+		}
+	}
+
+	if err := h.appointment.BookAppointment(scheduleID, patientID, startTime, endTime); err != nil {
 		h.bot.Send(tgbotapi.NewMessage(chatID,
 			"Ошибка при записи. Попробуйте позже."))
 	} else {

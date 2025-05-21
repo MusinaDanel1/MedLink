@@ -29,3 +29,27 @@ func (s *DoctorService) GetAvailableTimeSlots(doctorID int) ([]domain.TimeSlot, 
 func (s *DoctorService) CreateDoctor(fullName string, specializationID int) error {
 	return s.repo.CreateDoctor(fullName, specializationID)
 }
+
+func (s *DoctorService) GetAllDiagnoses() ([]domain.Diagnosis, error) {
+	return s.repo.GetAllDiagnoses()
+}
+
+func (s *DoctorService) GetAllServices() ([]domain.Service, error) {
+	return s.repo.GetAllServices()
+}
+
+func (s *DoctorService) GetDoctorByID(id int) (*domain.Doctor, error) {
+	return s.repo.GetDoctorByID(id)
+}
+
+func (s *DoctorService) GetDoctorByIIN(iin string) (*domain.Doctor, error) {
+	return s.repo.GetDoctorByIIN(iin)
+}
+
+func (s *DoctorService) CreateService(doctorID int, name string) (*domain.Service, error) {
+	return s.repo.CreateService(doctorID, name)
+}
+
+func (s *DoctorService) GetAllDoctors() ([]domain.Doctor, error) {
+	return s.repo.GetAllDoctors()
+}

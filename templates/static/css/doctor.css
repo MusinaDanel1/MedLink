@@ -1,0 +1,100 @@
+:root {
+    --primary: #0d6efd;
+    --secondary: #6c757d;
+    --light: #f8f9fa;
+    --dark: #343a40;
+  }
+  
+  body {
+    background-color: var(--light);
+    font-family: "Helvetica Neue", Arial, sans-serif;
+  }
+  
+  .navbar {
+    background-color: #fff;
+  }
+  
+  .navbar-brand {
+    font-weight: 600;
+  }
+  
+  .sidebar {
+    background-color: #fff;
+    border-right: 1px solid #dee2e6;
+    height: calc(100vh - 56px);
+  }
+  
+  .doctor-info {
+    text-align: center;
+    padding: 1rem 0;
+  }
+  
+  .doctor-avatar {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+  }
+  
+  .services-list h6 {
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    color: var(--dark);
+  }
+  
+  .services-list .list-group-item {
+    cursor: pointer;
+    transition: all 0.2s;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    padding: 8px 12px;
+  }
+  
+  .services-list .list-group-item.active,
+  .services-list .list-group-item:hover {
+    background-color: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+    transform: translateX(4px);
+  }
+  
+  #calendar {
+    background: #fff;
+    padding: 1rem;
+    border-radius: 0.25rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .modal-content {
+    border-radius: 0.5rem;
+  }
+  
+  .modal-header,
+  .modal-footer {
+    border: none;
+  }
+  
+  .form-control-color {
+    width: 100%;
+    padding: 0.5rem;
+    height: auto;
+  }
+  
+  .btn-primary {
+    background-color: var(--primary);
+    border: none;
+  }
+  
+  .btn-primary:hover {
+    background-color: #0b5ed7;
+  }
+  
+  .btn-outline-secondary {
+    border-color: var(--secondary);
+    color: var(--secondary);
+  }
+  
+  .btn-outline-secondary:hover {
+    background-color: var(--secondary);
+    color: #fff;
+  }
+  

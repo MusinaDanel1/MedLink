@@ -36,3 +36,22 @@ func (r *authRepo) GetByIIN(iin string) (*domain.User, error) {
 
 	return &u, nil
 }
+
+func (r *authRepo) GetByID(id string) (*domain.User, error) {
+	var u domain.User
+
+	query := `SELECT id, iin, password_hash, full_name, role, is_blocked
+	FROM users WHERE id = $1`
+	err := r.db.QueryRow(query, id).Scan(
+		&u.ID,
+		&u.IIN,
+		&u.Password,
+		&u.FullName,
+		&u.Role,
+		&u.IsBlocked,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &u, nil
+}

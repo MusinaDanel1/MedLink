@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Телемед - Диагностика</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    .card { margin-bottom: 20px; }
+    pre { background: #f8f9fa; padding: 10px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div class="container mt-4">
+    <h1>Диагностика системы</h1>
+    
+    <div class="card">
+      <div class="card-header">
+        <h2>Врачи</h2>
+      </div>
+      <div class="card-body">
+        <div id="doctors-list">Загрузка...</div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-header">
+        <h2>Услуги</h2>
+      </div>
+      <div class="card-body">
+        <div id="services-list">Загрузка...</div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-header">
+        <h2>Пользователи</h2>
+      </div>
+      <div class="card-body">
+        <div id="users-info">
+          <p>Текущий пользователь ИИН: <span id="current-user">Неизвестно</span></p>
+          <p>Проверка связи с доктором: <span id="doctor-link">Неизвестно</span></p>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Fetch doctors
+    async function fetchDoctors() {
+      try {
+        const response = await fetch('/api/doctors');
+        if (!response.ok) {
+          throw new Error(`HTTP error: ${response.status}`);
+        }
+        const doctors = await response.json();
+        
+        let html = `<p>Найдено ${doctors.length} врачей:</p>`;
+        html += '<table class="table table-striped">';
+        html += '<thead><tr><th>ID</th><th>Имя</th><th>Специализация</th><th>Количество услуг</th></tr></thead>';
+        html += '<tbody>';
+        
+        doctors.forEach(d => {
+          html += `<tr>
+            <td>${d.id}</td>
+            <td>${d.name}</td>
+            <td>${d.specialization || 'Нет данных'}</td>
+            <td>${d.service_count}</td>
+          </tr>`;
+        });
+        
+        html += '</tbody></table>';
+        document.getElementById('doctors-list').innerHTML = html;
+      } catch (error) {
+        document.getElementById('doctors-list').innerHTML = `<div class="alert alert-danger">Ошибка загрузки врачей: ${error.message}</div>`;
+      }
+    }
+    
+    // Fetch services
+    async function fetchServices() {
+      try {
+        const response = await fetch('/api/services');
+        if (!response.ok) {
+          throw new Error(`HTTP error: ${response.status}`);
+        }
+        const services = await response.json();
+        
+        let html = `<p>Найдено ${services.length} услуг:</p>`;
+        html += '<table class="table table-striped">';
+        html += '<thead><tr><th>ID</th><th>Название</th><th>ID Врача</th></tr></thead>';
+        html += '<tbody>';
+        
+        services.forEach(s => {
+          html += `<tr>
+            <td>${s.id}</td>
+            <td>${s.name}</td>
+            <td>${s.doctor_id || 'Нет'}</td>
+          </tr>`;
+        });
+        
+        html += '</tbody></table>';
+        document.getElementById('services-list').innerHTML = html;
+      } catch (error) {
+        document.getElementById('services-list').innerHTML = `<div class="alert alert-danger">Ошибка загрузки услуг: ${error.message}</div>`;
+      }
+    }
+    
+    // Load data
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchDoctors();
+      fetchServices();
+    });
+  </script>
+</body>
+</html> 

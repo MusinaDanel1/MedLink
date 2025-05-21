@@ -28,3 +28,7 @@ func (s *PatientService) GetIDByChatID(chatID int64) (int, error) {
 	}
 	return patient.ID, nil
 }
+
+func (s *PatientService) GetAll() ([]domain.Patient, error) {
+	return s.repo.GetAll()
+}

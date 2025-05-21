@@ -64,19 +64,29 @@ func (h *BotHandler) HandleMessage(msg *tgbotapi.Message) {
 		aiMsg := tgbotapi.NewMessage(chatID, reply)
 		aiMsg.ParseMode = "Markdown"
 		h.bot.Send(aiMsg)
+
+		// Return to main menu after AI consultation
+		delete(h.state, chatID)
+		h.sendMainMenu(chatID)
 		return
 	}
 
 	// Handle regular keyboard buttons
 	switch text {
 	case "📅 Записаться к врачу":
+		// Start the booking flow
 		h.handleBookingStart(chatID)
 	case "💬 Консультация с ИИ":
 		h.state[chatID] = "ai_consultation_waiting"
 		msg := tgbotapi.NewMessage(chatID, "Пожалуйста, опишите вашу жалобу, и я проконсультирую вас.")
 		h.bot.Send(msg)
 	default:
-		// If it's not a command or button, handle as user input
-		h.handleUserInput(chatID, text)
+		// If not a recognized command, show the main menu
+		if h.state[chatID] == "" {
+			h.sendMainMenu(chatID)
+		} else {
+			// Process as input for the current state
+			h.handleUserInput(chatID, text)
+		}
 	}
 }
