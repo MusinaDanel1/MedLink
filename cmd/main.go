@@ -256,18 +256,19 @@ func main() {
 	// Set trusted proxy to localhost and private IPs
 	r.SetTrustedProxies([]string{"127.0.0.1", "192.168.0.0/16", "10.0.0.0/8"})
 
-	// 1) Сигнальный WebSocket
+	// 2) WebSocket-сигналинг для вашего video.SignalingHandler
 	r.GET("/ws", video.SignalingHandler)
-	// 2) Отдаём конкретную страницу приёма
-	r.GET("/appointment.html", func(c *gin.Context) {
-		c.File("./templates/appointment.html")
-	})
-	// Debugging page
-	r.GET("/debug.html", func(c *gin.Context) {
-		c.File("./templates/debug.html")
-	})
-	// 3) Раздаём остальную статику из под /static
-	r.Static("/static", "./static")
+
+	// 3) Статика
+	//    Ваши CSS/JS лежат в templates/static/{css,js}
+	r.Static("/static", "./templates/static")
+
+	// 4) Страница WebRTC-рума
+	//    URL: /webrtc/room.html?appointment_id=42&role=doctor
+	r.StaticFile("/webrtc/room.html", "./templates/appointment.html")
+
+	// 5) Отладочная страница, если нужна
+	r.StaticFile("/debug.html", "./templates/debug.html")
 
 	// Add login routes to Gin server
 	r.GET("/login", func(c *gin.Context) {

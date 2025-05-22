@@ -2,6 +2,7 @@ package http
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -36,6 +37,9 @@ func NewAppointmentHandler(a *usecase.AppointmentService) *AppointmentHandler {
 }
 
 func (h *AppointmentHandler) GetAppointmentDetails(c *gin.Context) {
+	idStr := c.Param("id")
+	log.Printf("GetAppointmentDetails called, id = %q", idStr)
+
 	apptID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(400, gin.H{"error": "Invalid appointment ID"})
@@ -172,19 +176,29 @@ func (h *AppointmentHandler) AcceptAppointment(c *gin.Context) {
 	// 1) Парсим ID
 	apptID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid appointment ID"})
+		c.JSON(http.StatusBadRequest,
+			gin.H{"error": "invalid appointment ID"})
 		return
 	}
-	// 2) Вызываем сервис
-	videoURL, err := h.apptSvc.AcceptAppointment(apptID)
+	// 2) Меняем статус и создаём/получаем комнату
+	relURL, err := h.apptSvc.AcceptAppointment(apptID)
 	if err != nil {
-		// можно дифференцировать ошибки статуса и видео
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError,
+			gin.H{"error": err.Error()})
 		return
 	}
-	// 3) Отдаём клиенту ссылку
+	// 3) Получаем схему и хост из запроса, чтобы отдать абсолютный URL
+	scheme := "https"
+	if c.Request.TLS == nil {
+		scheme = "http"
+	}
+	host := c.Request.Host
+
+	absURL := fmt.Sprintf("%s://%s%s&role=doctor",
+		scheme, host, relURL)
+
 	c.JSON(http.StatusOK, gin.H{
 		"success":  true,
-		"videoUrl": videoURL,
+		"videoUrl": absURL,
 	})
 }

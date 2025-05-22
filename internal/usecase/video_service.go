@@ -15,9 +15,16 @@ func NewVideoService(r domain.VideoSessionRepository) *VideoService {
 }
 
 func (s *VideoService) StartSession(apptID int) (domain.VideoSession, error) {
-	// формируем уникальное имя комнаты
-	roomName := fmt.Sprintf("appointment-%d-%d", apptID, time.Now().Unix())
-	videoURL := "https://meet.jit.si/" + roomName
+	if vs, err := s.repo.FindByIDAppointment(apptID); err == nil {
+		return vs, nil
+	}
+	roomName := fmt.Sprintf("appointment-%d-%d",
+		apptID, time.Now().Unix())
+
+	// 3) собираем относительный путь на ваш WebRTC-рум
+	//    фронт будет его превращать в абсолютный URL
+	videoURL := fmt.Sprintf("/webrtc/room.html?appointment_id=%d",
+		apptID)
 
 	vs, err := s.repo.Create(domain.VideoSession{
 		AppointmentID: apptID,

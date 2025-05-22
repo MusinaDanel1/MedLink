@@ -333,7 +333,6 @@ WHERE t.schedule_id = ANY($1)
 		out = make([]domain.Appointment, 0)
 	}
 	log.Printf("[APPT_REPO] out=%+v", out)
-
 	return out, rows.Err()
 }
 
