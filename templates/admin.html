@@ -3,182 +3,291 @@
 <head>
   <meta charset="UTF-8" />
   <title>Админ-панель</title>
+  <link
+    href="https://fonts.googleapis.com/css?family=Roboto:400,500,700&display=swap"
+    rel="stylesheet"
+  />
   <style>
+    :root {
+      --bg: #f5f7fa;
+      --card: #ffffff;
+      --primary: #3498db;
+      --accent: #2ecc71;
+      --text: #2c3e50;
+      --muted: #7f8c8d;
+      --danger: #e74c3c;
+    }
+    * {
+      box-sizing: border-box;
+    }
     body {
-      font-family: Arial, sans-serif;
-      margin: 2em;
-      background: #f4f6f8;
+      margin: 0;
+      padding: 0;
+      font-family: 'Roboto', sans-serif;
+      background: var(--bg);
+      color: var(--text);
     }
-
+    .container {
+      max-width: 960px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
     h1 {
-      margin-bottom: 1em;
-    }
-
-    .tabs {
-      display: flex;
-      gap: 10px;
+      text-align: center;
+      font-weight: 500;
       margin-bottom: 20px;
     }
-
+    .tabs {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+      border-bottom: 2px solid var(--muted);
+    }
     .tab {
-      padding: 10px 20px;
-      background-color: #e0e0e0;
-      border-radius: 8px 8px 0 0;
+      position: relative;
+      padding: 12px 20px;
+      margin: 0 5px;
       cursor: pointer;
-      transition: background-color 0.3s;
+      font-weight: 500;
+      color: var(--muted);
+      transition: color 0.3s;
     }
-
+    .tab:hover {
+      color: var(--primary);
+    }
     .tab.active {
-      background-color: #007BFF;
-      color: white;
+      color: var(--primary);
     }
-
+    .tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--primary);
+      border-radius: 2px 2px 0 0;
+    }
     .tab-content {
       display: none;
-      background: white;
-      padding: 20px;
-      border-radius: 0 0 8px 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      background: var(--card);
+      padding: 30px;
+      border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     }
-
     .tab-content.active {
       display: block;
     }
-
     form {
-      max-width: 500px;
+      max-width: 600px;
+      margin: 0 auto;
     }
-
+    .form-group {
+      margin-bottom: 15px;
+    }
     label {
       display: block;
-      margin-top: 10px;
+      margin-bottom: 6px;
+      font-weight: 500;
     }
-
-    input {
+    input,
+    select {
       width: 100%;
-      padding: 8px;
-      margin-top: 5px;
-      border: 1px solid #ccc;
+      padding: 10px 12px;
+      border: 1px solid #ccd1d9;
       border-radius: 4px;
+      font-size: 14px;
+      transition: border-color 0.3s, box-shadow 0.3s;
     }
-
+    input:focus,
+    select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+      outline: none;
+    }
     button {
-      margin-top: 15px;
-      padding: 10px 20px;
-      background-color: #007BFF;
-      color: white;
+      display: inline-block;
+      padding: 12px 24px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 500;
       border: none;
       border-radius: 4px;
       cursor: pointer;
+      transition: background 0.3s;
     }
-
+    button:hover {
+      background: #2980b9;
+    }
     .response {
-      margin-top: 10px;
-      color: green;
+      margin-top: 12px;
+      font-size: 14px;
     }
-
-    .error {
-      color: red;
+    .response.error {
+      color: var(--danger);
     }
-
+    .response:not(.error) {
+      color: var(--accent);
+    }
+    .table-container {
+      overflow-x: auto;
+    }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 1em;
+      margin-top: 20px;
     }
-
-    th, td {
-      padding: 10px;
-      border: 1px solid #ddd;
+    th,
+    td {
+      padding: 14px 12px;
+      text-align: left;
     }
-
     th {
-      background: #007BFF;
-      color: white;
+      background: var(--primary);
+      color: #fff;
+    }
+    tbody tr:nth-child(even) {
+      background: #f9f9f9;
+    }
+    tbody tr:hover {
+      background: rgba(52, 152, 219, 0.1);
+    }
+    .status-active {
+      color: var(--accent);
+      font-weight: 500;
+    }
+    .status-blocked {
+      color: var(--danger);
+      font-weight: 500;
     }
   </style>
 </head>
+
 <body>
+  <div class="container">
+    <h1>Админ-панель</h1>
 
-<h1>Админ-панель</h1>
-
-<div class="tabs">
-  <div class="tab active" onclick="switchTab('register')">➕ Добавить</div>
-  <div class="tab" onclick="switchTab('block')">🚫 Блокировать</div>
-  <div class="tab" onclick="switchTab('unblock')">✅ Разблокировать</div>
-  <div class="tab" onclick="switchTab('delete')">🗑 Удалить</div>
-  <div class="tab" onclick="switchTab('users')">📋 Список</div>
-</div>
-
-<div id="register" class="tab-content active">
-  <form id="register-form">
-    <label>ИИН:</label>
-    <input type="text" name="iin" required pattern="\d{12}" minlength="12" maxlength="12" title="ИИН должен содержать ровно 12 цифр" />
-    <label>Пароль:</label>
-    <input type="password" name="password" required minlength="6" />
-    <label>ФИО:</label>
-    <input type="text" name="full_name" required />
-    <label>Роль:</label>
-    <select name="role" id="role-select" required onchange="handleRoleChange()">
-      <option value="">-- выберите роль --</option>
-      <option value="admin">admin</option>
-      <option value="doctor">doctor</option>
-    </select>
-
-    <div id="specialization-group" style="display: none;">
-      <label>Специализация:</label>
-      <select name="specialization_id" id="specialization-select" required type="number"></select>
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('register')">
+        ➕ Добавить
+      </div>
+      <div class="tab" onclick="switchTab('block')">
+        🚫 Блокировать
+      </div>
+      <div class="tab" onclick="switchTab('unblock')">
+        ✅ Разблокировать
+      </div>
+      <div class="tab" onclick="switchTab('delete')">
+        🗑 Удалить
+      </div>
+      <div class="tab" onclick="switchTab('users')">
+        📋 Список
+      </div>
     </div>
-    
-    <button type="submit">Зарегистрировать</button>
-    <div class="response" id="register-response"></div>
-  </form>
-</div>
 
-<div id="block" class="tab-content">
-  <form id="block-form">
-    <label>ИИН:</label>
-    <input type="text" name="iin" required />
-    <button type="submit">Заблокировать</button>
-    <div class="response" id="block-response"></div>
-  </form>
-</div>
+    <div id="register" class="tab-content active">
+      <form id="register-form">
+        <div class="form-group">
+          <label>ИИН:</label>
+          <input
+            type="text"
+            name="iin"
+            required
+            pattern="\d{12}"
+            minlength="12"
+            maxlength="12"
+            title="ИИН должен содержать ровно 12 цифр"
+          />
+        </div>
+        <div class="form-group">
+          <label>Пароль:</label>
+          <input type="password" name="password" required minlength="6" />
+        </div>
+        <div class="form-group">
+          <label>ФИО:</label>
+          <input type="text" name="full_name" required />
+        </div>
+        <div class="form-group">
+          <label>Роль:</label>
+          <select
+            name="role"
+            id="role-select"
+            required
+            onchange="handleRoleChange()"
+          >
+            <option value="">-- выберите роль --</option>
+            <option value="admin">admin</option>
+            <option value="doctor">doctor</option>
+          </select>
+        </div>
+        <div
+          class="form-group"
+          id="specialization-group"
+          style="display: none;"
+        >
+          <label>Специализация:</label>
+          <select name="specialization_id" id="specialization-select" required>
+          </select>
+        </div>
+        <button type="submit">Зарегистрировать</button>
+        <div class="response" id="register-response"></div>
+      </form>
+    </div>
 
-<div id="unblock" class="tab-content">
-  <form id="unblock-form">
-    <label>ИИН:</label>
-    <input type="text" name="iin" required />
-    <button type="submit">Разблокировать</button>
-    <div class="response" id="unblock-response"></div>
-  </form>
-</div>
+    <div id="block" class="tab-content">
+      <form id="block-form">
+        <div class="form-group">
+          <label>ИИН:</label>
+          <input type="text" name="iin" required />
+        </div>
+        <button type="submit">Заблокировать</button>
+        <div class="response" id="block-response"></div>
+      </form>
+    </div>
 
-<div id="delete" class="tab-content">
-  <form id="delete-form">
-    <label>ИИН:</label>
-    <input type="text" name="iin" required />
-    <button type="submit">Удалить</button>
-    <div class="response" id="delete-response"></div>
-  </form>
-</div>
+    <div id="unblock" class="tab-content">
+      <form id="unblock-form">
+        <div class="form-group">
+          <label>ИИН:</label>
+          <input type="text" name="iin" required />
+        </div>
+        <button type="submit">Разблокировать</button>
+        <div class="response" id="unblock-response"></div>
+      </form>
+    </div>
 
-<div id="users" class="tab-content">
-  <button onclick="fetchUsers()">🔄 Обновить список</button>
-  <table id="user-table">
-    <thead>
-      <tr>
-        <th>ИИН</th>
-        <th>ФИО</th>
-        <th>Роль</th>
-        <th>Статус</th>
-      </tr>
-    </thead>
-    <tbody id="user-table-body"></tbody>
-  </table>
-</div>
+    <div id="delete" class="tab-content">
+      <form id="delete-form">
+        <div class="form-group">
+          <label>ИИН:</label>
+          <input type="text" name="iin" required />
+        </div>
+        <button type="submit">Удалить</button>
+        <div class="response" id="delete-response"></div>
+      </form>
+    </div>
 
-<script>
-  const token = localStorage.getItem("token");
+    <div id="users" class="tab-content">
+      <button onclick="fetchUsers()">🔄 Обновить список</button>
+      <div class="table-container">
+        <table id="user-table">
+          <thead>
+            <tr>
+              <th>ИИН</th>
+              <th>ФИО</th>
+              <th>Роль</th>
+              <th>Статус</th>
+            </tr>
+          </thead>
+          <tbody id="user-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem("token");
   if (!token) {
     alert("Вы не авторизованы. Перенаправление на страницу входа...");
     window.location.href = "/login";
@@ -385,7 +494,6 @@ function loadSpecializations() {
     const data = Object.fromEntries(new FormData(this).entries());
     postJSON("/admin/delete", data, "delete-response");
   });
-</script>
-
+  </script>
 </body>
 </html>

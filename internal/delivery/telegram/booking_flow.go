@@ -302,9 +302,7 @@ func (h *BotHandler) handleBookingConfirm(chatID int64, ok bool) {
 	))
 
 	// Генерим ссылку на видео-сессию и отправляем
-	if err == nil {
-		h.sendVideoLink(chatID, apptID)
-	}
+	h.sendVideoLink(chatID, apptID)
 
 	delete(h.state, chatID)
 	delete(h.temp, chatID)
