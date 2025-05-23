@@ -310,6 +310,7 @@ func main() {
 	r.GET("/api/appointments/:id/messages", msgHandler.List)
 	r.POST("/api/appointments/:id/messages", msgHandler.Create)
 	r.GET("/api/appointments/:id/details", apptHandler.GetAppointmentDetails)
+	r.PUT("/api/appointments/:id/details", apptHandler.CompleteAppointment)
 	r.POST("/api/appointments/:id/complete", apptHandler.CompleteAppointment)
 	r.PUT("/api/appointments/:id/accept", apptHandler.AcceptAppointment)
 	r.POST("/api/appointments", apptHandler.BookAppointment)

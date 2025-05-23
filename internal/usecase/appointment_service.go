@@ -56,7 +56,9 @@ func (s AppointmentService) GetPatientDetailsByID(patientID int) (map[string]int
 	return s.repo.GetPatientDetailsByID(patientID)
 }
 
-func (s AppointmentService) CompleteAppointment(details domain.AppointmentDetails) error {
+func (s *AppointmentService) CompleteAppointment(
+	details domain.AppointmentDetails,
+) error {
 	return s.repo.CompleteAppointment(details)
 }
 

@@ -71,42 +71,38 @@ func (h *AppointmentHandler) GetAppointmentDetails(c *gin.Context) {
 func (h *AppointmentHandler) CompleteAppointment(c *gin.Context) {
 	apptID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Invalid appointment ID"})
+		c.JSON(400, gin.H{"error": "invalid appointment ID"})
 		return
 	}
 
-	// Parse request body
 	var req CompleteAppointmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid request format: " + err.Error()})
+		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Convert to domain model
+	// Собираем доменную модель
 	details := domain.AppointmentDetails{
 		AppointmentID: apptID,
 		Complaints:    req.Complaints,
 		Diagnosis:     req.Diagnosis,
 		Assignment:    req.Assignment,
 	}
-
-	// Convert prescriptions
 	for _, p := range req.Prescriptions {
-		details.Prescriptions = append(details.Prescriptions, domain.Prescription{
-			Medication: p.Med,
-			Dosage:     p.Dose,
-			Schedule:   p.Schedule,
-		})
+		details.Prescriptions = append(details.Prescriptions,
+			domain.Prescription{
+				Medication: p.Med,
+				Dosage:     p.Dose,
+				Schedule:   p.Schedule,
+			})
 	}
 
-	// Save to database
+	// Сохраняем
 	if err := h.apptSvc.CompleteAppointment(details); err != nil {
-		c.JSON(500, gin.H{"error": "Failed to save appointment details: " + err.Error()})
+		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
-
-	// Send success response
-	c.JSON(200, gin.H{"success": true, "message": "Appointment details saved successfully"})
+	c.JSON(200, gin.H{"success": true})
 }
 
 func (h *AppointmentHandler) BookAppointment(c *gin.Context) {

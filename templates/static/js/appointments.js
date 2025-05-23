@@ -490,36 +490,38 @@ addBtn.addEventListener('click', () => {
 });
 
 // ===== Сохранение приёма =====
-document.getElementById('saveBtn').addEventListener('click', async () => {
-  const diagnosisValue = document.getElementById('diagnosis').value;
-  
-  const data = {
-    complaints: document.getElementById('complaint').value,
-    diagnosis:  diagnosisValue,
-    assignment: document.getElementById('assignText').value,
-    prescriptions: Array.from(
-      document.querySelectorAll('#prescriptionsTable tbody tr')
-    ).map(r => ({
-      med:      r.children[0].textContent,
-      dose:     r.children[1].textContent,
-      schedule: r.children[2].textContent
-    }))
+// после всех функций и WebRTC-логаики
+document.getElementById("saveBtn").onclick = async () => {
+  const complaints = document.getElementById("complaint").value.trim();
+  const diagnosis  = document.getElementById("diagnosis").value;   // код или имя
+  const assignment = document.getElementById("assignText").value.trim();
+  const prescriptions = Array.from(
+    document.querySelectorAll("#prescriptionsTable tbody tr")
+  ).map(tr => ({
+    med:      tr.cells[0].textContent,
+    dose:     tr.cells[1].textContent,
+    schedule: tr.cells[2].textContent,
+  }));
+
+  const payload = {
+    complaints,
+    diagnosis,
+    assignment,
+    prescriptions,
   };
-  
-  try {
-    const response = await fetch(`/api/appointments/${apptID}/complete`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    
-    if (response.ok) {
-      alert('Приём сохранён и отправлен пациенту');
-    } else {
-      alert('Ошибка при сохранении: ' + (await response.text()));
+
+  const res = await fetch(
+    `${apiBaseUrl}/api/appointments/${apptID}/details`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     }
-  } catch (error) {
-    console.error('Error saving appointment:', error);
-    alert('Ошибка при сохранении приёма');
+  );
+  if (res.ok) {
+    alert("Сохранено успешно");
+  } else {
+    alert("Ошибка: " + (await res.text()));
   }
-});
+};
+

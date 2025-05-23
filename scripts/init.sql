@@ -133,7 +133,7 @@ CREATE TABLE appointment_details (
   appointment_id INT PRIMARY KEY
     REFERENCES appointments(id) ON DELETE CASCADE,
   complaints TEXT,
-  diagnosis_id INT REFERENCES diagnoses(id),
+  diagnosis TEXT ,
   assignments TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

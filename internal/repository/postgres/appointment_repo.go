@@ -195,79 +195,51 @@ func (r *AppointmentRepository) GetPatientDetailsByID(patientID int) (map[string
 	return result, nil
 }
 
-func (r *AppointmentRepository) CompleteAppointment(details domain.AppointmentDetails) error {
-	// Begin transaction
+func (r *AppointmentRepository) CompleteAppointment(
+	d domain.AppointmentDetails,
+) error {
 	tx, err := r.db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	// Find diagnosis ID
-	var diagnosisID *int
-	if details.Diagnosis != "" {
-		// Try to find the diagnosis by code or name
-		query := `SELECT id FROM diagnoses WHERE code = $1 OR name = $1`
-		var id int
-		err := tx.QueryRow(query, details.Diagnosis).Scan(&id)
-		if err == nil {
-			diagnosisID = &id
-		}
-	}
-
-	// Insert or update appointment details
-	query := `
-		INSERT INTO appointment_details (
-			appointment_id, complaints, diagnosis_id, assignments, updated_at
-		) VALUES ($1, $2, $3, $4, NOW())
-		ON CONFLICT (appointment_id) 
-		DO UPDATE SET 
-			complaints = $2,
-			diagnosis_id = $3,
-			assignments = $4,
-			updated_at = NOW()
-	`
-
-	_, err = tx.Exec(
-		query,
-		details.AppointmentID,
-		details.Complaints,
-		diagnosisID, // Might be nil, which is fine for SQL NULL
-		details.Assignment,
-	)
-
+	// 2) вставляем или обновляем appointment_details
+	_, err = tx.Exec(`
+    INSERT INTO appointment_details
+      (appointment_id, complaints, diagnosis, assignments, updated_at)
+    VALUES ($1,$2,$3,$4,NOW())
+    ON CONFLICT (appointment_id) DO UPDATE SET
+      complaints  = EXCLUDED.complaints,
+      diagnosis   = EXCLUDED.diagnosis,
+      assignments = EXCLUDED.assignments,
+      updated_at  = NOW()
+  `, d.AppointmentID, d.Complaints, d.Diagnosis, d.Assignment)
 	if err != nil {
 		return err
 	}
 
-	// Delete existing prescriptions if any
-	if len(details.Prescriptions) > 0 {
-		_, err = tx.Exec(
-			`DELETE FROM prescriptions WHERE appointment_id = $1`,
-			details.AppointmentID,
-		)
+	// 3) удаляем старые рецепты
+	_, err = tx.Exec(
+		`DELETE FROM prescriptions WHERE appointment_id=$1`,
+		d.AppointmentID,
+	)
+	if err != nil {
+		return err
+	}
+
+	// 4) вставляем новые
+	for _, p := range d.Prescriptions {
+		_, err = tx.Exec(`
+      INSERT INTO prescriptions
+        (appointment_id, medication, dosage, schedule)
+      VALUES ($1,$2,$3,$4)
+    `, d.AppointmentID, p.Medication, p.Dosage, p.Schedule)
 		if err != nil {
 			return err
 		}
-
-		// Insert new prescriptions
-		for _, prescription := range details.Prescriptions {
-			_, err = tx.Exec(
-				`INSERT INTO prescriptions (
-					appointment_id, medication, dosage, schedule
-				) VALUES ($1, $2, $3, $4)`,
-				details.AppointmentID,
-				prescription.Medication,
-				prescription.Dosage,
-				prescription.Schedule,
-			)
-			if err != nil {
-				return err
-			}
-		}
 	}
 
-	// Commit transaction
 	return tx.Commit()
 }
 
