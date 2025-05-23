@@ -17,12 +17,13 @@ func NewAppointmentRepository(db *sql.DB) *AppointmentRepository {
 	return &AppointmentRepository{db: db}
 }
 
-func (r *AppointmentRepository) CreateAppointment(app domain.Appointment) error {
-	_, err := r.db.Exec(
-		"INSERT INTO appointments (patient_id, doctor_id, service_id, timeslot_id) VALUES ($1, $2, $3, $4)",
+func (r *AppointmentRepository) CreateAppointment(app domain.Appointment) (int, error) {
+	var id int
+	err := r.db.QueryRow(
+		"INSERT INTO appointments (patient_id, doctor_id, service_id, timeslot_id) VALUES ($1, $2, $3, $4) RETURNING id",
 		app.PatientID, app.DoctorID, app.ServiceID, app.TimeslotID,
-	)
-	return err
+	).Scan(&id)
+	return id, err
 }
 
 func (r *AppointmentRepository) MarkTimeslotAsBooked(timeslotID int) error {

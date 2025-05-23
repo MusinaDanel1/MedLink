@@ -49,7 +49,7 @@ type Prescription struct {
 }
 
 type AppointmentRepository interface {
-	CreateAppointment(a Appointment) error
+	CreateAppointment(a Appointment) (int, error)
 	MarkTimeslotAsBooked(timeslotID int) error
 	GetAppointmentByID(id int) (*Appointment, error)
 	GetPatientDetailsByID(patientID int) (map[string]interface{}, error)

@@ -3,6 +3,7 @@ package telegram
 import (
 	"strconv"
 	"strings"
+	"telemed/internal/usecase"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -279,16 +280,30 @@ func (h *BotHandler) handleBookingConfirm(chatID int64, ok bool) {
 		}
 	}
 
-	if err := h.appointment.BookAppointment(scheduleID, patientID, startTime, endTime); err != nil {
-		h.bot.Send(tgbotapi.NewMessage(chatID,
-			"Ошибка при записи. Попробуйте позже."))
-	} else {
-		h.bot.Send(tgbotapi.NewMessage(chatID,
-			"Вы успешно записаны!\n"+
-				"Врач: "+h.temp[chatID]["doctor_name"]+"\n"+
-				"Услуга: "+h.temp[chatID]["service_name"]+"\n"+
-				"Время: "+h.temp[chatID]["timeslot_time"],
-		))
+	apptID, err := h.appointment.BookAppointment(
+		scheduleID, patientID, startTime, endTime,
+	)
+
+	if err != nil {
+		if err == usecase.ErrSlotBooked {
+			h.bot.Send(tgbotapi.NewMessage(chatID, "Извините, этот слот уже занят."))
+		} else {
+			h.bot.Send(tgbotapi.NewMessage(chatID, "Ошибка при записи: "+err.Error()))
+		}
+		return
+	}
+
+	// Подтверждаем пользователю
+	h.bot.Send(tgbotapi.NewMessage(chatID,
+		"Вы успешно записаны!\n"+
+			"Врач: "+h.temp[chatID]["doctor_name"]+"\n"+
+			"Услуга: "+h.temp[chatID]["service_name"]+"\n"+
+			"Время: "+h.temp[chatID]["timeslot_time"],
+	))
+
+	// Генерим ссылку на видео-сессию и отправляем
+	if err == nil {
+		h.sendVideoLink(chatID, apptID)
 	}
 
 	delete(h.state, chatID)

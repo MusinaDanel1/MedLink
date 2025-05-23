@@ -23,7 +23,7 @@ func (s *VideoService) StartSession(apptID int) (domain.VideoSession, error) {
 
 	// 3) собираем относительный путь на ваш WebRTC-рум
 	//    фронт будет его превращать в абсолютный URL
-	videoURL := fmt.Sprintf("/webrtc/room.html?appointment_id=%d",
+	videoURL := fmt.Sprintf("/webrtc/room.html?appointment_id=%d&role=doctor",
 		apptID)
 
 	vs, err := s.repo.Create(domain.VideoSession{

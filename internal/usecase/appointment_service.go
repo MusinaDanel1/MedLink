@@ -23,17 +23,17 @@ func NewAppointmentService(r domain.AppointmentRepository, sr domain.ScheduleRep
 func (u *AppointmentService) BookAppointment(
 	scheduleID, patientID int,
 	start, end time.Time,
-) error {
+) (int, error) {
 	sch, err := u.SRepo.GetByID(scheduleID)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	ts, err := u.TRepo.GetOrCreate(scheduleID, start, end)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	if ts.IsBooked {
-		return ErrSlotBooked
+		return 0, ErrSlotBooked
 	}
 	ap := domain.Appointment{
 		DoctorID:   sch.DoctorID,
@@ -42,10 +42,14 @@ func (u *AppointmentService) BookAppointment(
 		PatientID:  patientID,
 		Status:     "Записан",
 	}
-	if err := u.repo.CreateAppointment(ap); err != nil {
-		return err
+	apptID, err := u.repo.CreateAppointment(ap)
+	if err != nil {
+		return 0, err
 	}
-	return u.TRepo.MarkBooked(ts.ID, true)
+	if err := u.TRepo.MarkBooked(ts.ID, true); err != nil {
+		return 0, err
+	}
+	return apptID, nil
 }
 
 func (s AppointmentService) GetAppointmentByID(id int) (*domain.Appointment, error) {

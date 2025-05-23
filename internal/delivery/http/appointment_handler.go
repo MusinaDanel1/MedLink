@@ -223,7 +223,7 @@ func (h *AppointmentHandler) BookAppointment(c *gin.Context) {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
-	err := h.apptSvc.BookAppointment(
+	apptID, err := h.apptSvc.BookAppointment(
 		dto.ScheduleID,
 		dto.PatientID,
 		dto.Start,
@@ -232,12 +232,13 @@ func (h *AppointmentHandler) BookAppointment(c *gin.Context) {
 	if err != nil {
 		if err == usecase.ErrSlotBooked {
 			c.JSON(409, gin.H{"error": "timeslot already booked"})
-			return
+		} else {
+			c.JSON(500, gin.H{"error": err.Error()})
 		}
-		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
-	c.Status(201)
+	// возвращаем апгрейженный ID, чтобы бот мог его использовать
+	c.JSON(201, gin.H{"appointmentId": apptID})
 }
 
 func (h *AppointmentHandler) ListBySchedules(c *gin.Context) {

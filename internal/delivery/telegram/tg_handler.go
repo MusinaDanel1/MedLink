@@ -1,7 +1,11 @@
 package telegram
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
+	"strings"
 	"telemed/internal/usecase"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -101,4 +105,42 @@ func (h *BotHandler) SendReport(chatID int64, pdfBytes []byte, apptID int) error
 	msg := tgbotapi.NewDocument(chatID, doc)
 	_, err := h.bot.Send(msg)
 	return err
+}
+
+// internal/delivery/telegram/bot_handler.go
+func (h *BotHandler) sendVideoLink(chatID int64, apptID int) {
+	// 1) Формируем URL API
+	apiURL := fmt.Sprintf("http://localhost:8080/api/appointments/%d/accept", apptID)
+	// 2) Делаем PUT-запрос
+	req, _ := http.NewRequest("PUT", apiURL, nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		h.bot.Send(tgbotapi.NewMessage(chatID, "Не удалось получить ссылку."))
+		return
+	}
+	defer resp.Body.Close()
+	var body struct {
+		VideoUrl string `json:"videoUrl"`
+	}
+	json.NewDecoder(resp.Body).Decode(&body)
+
+	link := body.VideoUrl
+	u, err := url.Parse(link)
+	if err != nil {
+		// невалидный URL — просто добавим роль вручную
+		if strings.Contains(link, "?") {
+			link += "&role=patient"
+		} else {
+			link += "?role=patient"
+		}
+	} else {
+		q := u.Query()
+		q.Set("role", "patient")
+		u.RawQuery = q.Encode()
+		link = u.String()
+	}
+
+	h.bot.Send(tgbotapi.NewMessage(chatID,
+		"Через 5 минут видеозвонок по ссылке:\n"+link))
+
 }
