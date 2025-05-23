@@ -302,3 +302,11 @@ func (r *DoctorRepository) GetAllDoctors() ([]domain.Doctor, error) {
 
 	return doctors, nil
 }
+
+func (r *DoctorRepository) GetSpecializationName(id int) (string, error) {
+	var name string
+	err := r.db.QueryRow(
+		`SELECT name FROM specializations WHERE id = $1`, id,
+	).Scan(&name)
+	return name, err
+}

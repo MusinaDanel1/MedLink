@@ -24,6 +24,9 @@ COPY --from=builder /app/templates /root/templates
 # Копируем статику
 COPY --from=builder /app/templates/static /root/static
 
+COPY --from=builder /app/templates/static /root/static
+
+
 EXPOSE 8080
 
 CMD ["./telemed"]

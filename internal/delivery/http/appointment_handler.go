@@ -1,39 +1,37 @@
 package http
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
+	"telemed/internal/delivery/telegram"
 	"telemed/internal/domain"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jung-kurt/gofpdf"
 
 	"telemed/internal/usecase"
 )
 
-// CompleteAppointmentRequest holds the data from the front-end form
-type CompleteAppointmentRequest struct {
-	Complaints    string `json:"complaints"`
-	Diagnosis     string `json:"diagnosis"`
-	Assignment    string `json:"assignment"`
-	Prescriptions []struct {
-		Med      string `json:"med"`
-		Dose     string `json:"dose"`
-		Schedule string `json:"schedule"`
-	} `json:"prescriptions"`
-}
-
 type AppointmentHandler struct {
-	apptSvc *usecase.AppointmentService
+	apptSvc    *usecase.AppointmentService
+	doctorSvc  *usecase.DoctorService
+	botHandler *telegram.BotHandler
 }
 
-func NewAppointmentHandler(a *usecase.AppointmentService) *AppointmentHandler {
+func NewAppointmentHandler(a *usecase.AppointmentService, doc *usecase.DoctorService) *AppointmentHandler {
 	return &AppointmentHandler{
-		apptSvc: a,
+		apptSvc:   a,
+		doctorSvc: doc,
 	}
+}
+
+func (h *AppointmentHandler) SetBotHandler(b *telegram.BotHandler) {
+	h.botHandler = b
 }
 
 func (h *AppointmentHandler) GetAppointmentDetails(c *gin.Context) {
@@ -102,6 +100,115 @@ func (h *AppointmentHandler) CompleteAppointment(c *gin.Context) {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
+
+	appt, err := h.apptSvc.GetAppointmentByID(apptID)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "can't load appointment"})
+		return
+	}
+	patientMap, err := h.apptSvc.GetPatientDetailsByID(appt.PatientID)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "can't load patient"})
+		return
+	}
+	doc, err := h.doctorSvc.GetDoctorByID(appt.DoctorID)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "can't load doctor"})
+		return
+	}
+	specName, _ := h.doctorSvc.GetSpecializationName(doc.SpecializationID)
+	// 6) Сгенерить PDF через gofpdf
+	pdf := gofpdf.New("P", "mm", "A4", "")
+	pdf.AddUTF8Font("DejaVu", "", "static/fonts/DejaVuSans.ttf")
+	pdf.AddUTF8Font("DejaVu", "B", "static/fonts/DejaVuSans-Bold.ttf")
+	pdf.SetFont("DejaVu", "", 16)
+	pdf.AddPage()
+	pdf.Cell(40, 10, "Hello, PDF!")
+
+	// Заголовок
+	pdf.Cell(0, 10, "Отчёт о приёме")
+	pdf.Ln(12)
+	pdf.SetFont("DejaVu", "", 12)
+	// Инфо
+	pdf.CellFormat(40, 6, "Пациент:", "", 0, "", false, 0, "")
+	pdf.CellFormat(0, 6,
+		fmt.Sprintf("%s (ИИН: %s)",
+			patientMap["full_name"].(string),
+			patientMap["iin"].(string)),
+		"", 1, "", false, 0, "",
+	)
+	pdf.CellFormat(40, 6, "Врач:", "", 0, "", false, 0, "")
+	pdf.CellFormat(0, 6,
+		fmt.Sprintf("%s (%s)", doc.FullName, specName),
+		"", 1, "", false, 0, "",
+	)
+	pdf.CellFormat(40, 6, "Дата:", "", 0, "", false, 0, "")
+	pdf.CellFormat(0, 6, time.Now().Format("2006-01-02 15:04"), "", 1, "", false, 0, "")
+
+	// Секции
+	pdf.Ln(4)
+	pdf.SetFont("DejaVu", "B", 12)
+	pdf.Cell(0, 6, "Жалобы")
+	pdf.Ln(6)
+	pdf.SetFont("DejaVu", "", 12)
+	pdf.MultiCell(0, 6, details.Complaints, "", "", false)
+
+	pdf.Ln(2)
+	pdf.SetFont("DejaVu", "B", 12)
+	pdf.Cell(0, 6, "Диагноз")
+	pdf.Ln(6)
+	pdf.SetFont("DejaVu", "", 12)
+	pdf.MultiCell(0, 6, details.Diagnosis, "", "", false)
+
+	pdf.Ln(2)
+	pdf.SetFont("DejaVu", "B", 12)
+	pdf.Cell(0, 6, "Назначения")
+	pdf.Ln(6)
+	pdf.SetFont("DejaVu", "", 12)
+	pdf.MultiCell(0, 6, details.Assignment, "", "", false)
+
+	pdf.Ln(2)
+	pdf.SetFont("DejaVu", "B", 12)
+	pdf.Cell(0, 6, "Рецепты")
+	pdf.Ln(6)
+	pdf.SetFont("DejaVu", "", 12)
+	for _, p := range details.Prescriptions {
+		pdf.MultiCell(0, 6,
+			fmt.Sprintf("• %s, %s, %s", p.Medication, p.Dosage, p.Schedule),
+			"", "", false,
+		)
+	}
+
+	buf := &bytes.Buffer{}
+	if err := pdf.Output(buf); err != nil {
+		if err := pdf.Output(buf); err != nil {
+			log.Println("PDF output error:", err)
+			c.JSON(500, gin.H{"error": "pdf output failed: " + err.Error()})
+			return
+		}
+	}
+	pdfBytes := buf.Bytes()
+
+	// 7) Отправить PDF в Telegram
+	if h.botHandler != nil {
+		// Берём raw-значение из patientMap
+		raw := patientMap["telegram_id"]
+		// Приводим interface{} к int64 или float64
+		var tgID int64
+		switch v := raw.(type) {
+		case int64:
+			tgID = v
+		case float64:
+			tgID = int64(v)
+		default:
+			log.Printf("unexpected type for telegram_id: %T", raw)
+			// можно вернуть ошибку или пропустить отправку
+			return
+		}
+		// Асинхронно шлём отчёт
+		go h.botHandler.SendReport(tgID, pdfBytes, apptID)
+	}
+
 	c.JSON(200, gin.H{"success": true})
 }
 
@@ -197,4 +304,16 @@ func (h *AppointmentHandler) AcceptAppointment(c *gin.Context) {
 		"success":  true,
 		"videoUrl": absURL,
 	})
+}
+
+// CompleteAppointmentRequest holds the data from the front-end form
+type CompleteAppointmentRequest struct {
+	Complaints    string `json:"complaints"`
+	Diagnosis     string `json:"diagnosis"`
+	Assignment    string `json:"assignment"`
+	Prescriptions []struct {
+		Med      string `json:"med"`
+		Dose     string `json:"dose"`
+		Schedule string `json:"schedule"`
+	} `json:"prescriptions"`
 }

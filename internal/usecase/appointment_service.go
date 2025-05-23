@@ -78,3 +78,7 @@ func (u *AppointmentService) AcceptAppointment(apptID int) (string, error) {
 	}
 	return vs.VideoURL, nil
 }
+
+func (s *AppointmentService) GetAppointmentDetails(id int) (domain.AppointmentDetails, error) {
+	return s.repo.FetchDetails(id)
+}

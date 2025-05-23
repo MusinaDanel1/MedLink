@@ -315,3 +315,37 @@ func (r *AppointmentRepository) UpdateStatus(id int, status string) error {
 	)
 	return err
 }
+
+// internal/repository/postgres/appointment_repo.go
+func (r *AppointmentRepository) FetchDetails(apptID int) (domain.AppointmentDetails, error) {
+	var d domain.AppointmentDetails
+	d.AppointmentID = apptID
+	// 1) complaints, diagnosis, assignment
+	err := r.db.QueryRow(`
+	  SELECT complaints, diagnosis, assignments
+		FROM appointment_details
+	   WHERE appointment_id=$1
+	`, apptID).Scan(&d.Complaints, &d.Diagnosis, &d.Assignment)
+	if err != nil && err != sql.ErrNoRows {
+		return d, err
+	}
+	// 2) prescriptions
+	rows, err := r.db.Query(`
+	  SELECT medication, dosage, schedule
+		FROM prescriptions
+	   WHERE appointment_id=$1
+	`, apptID)
+	if err != nil {
+		return d, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var p domain.Prescription
+		if err := rows.Scan(&p.Medication, &p.Dosage, &p.Schedule); err != nil {
+			continue
+		}
+		d.Prescriptions = append(d.Prescriptions, p)
+	}
+	return d, rows.Err()
+}

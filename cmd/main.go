@@ -203,7 +203,8 @@ func main() {
 	}
 
 	msgHandler := http1.NewMessageHandler(msgService, appointmentService)
-	apptHandler := http1.NewAppointmentHandler(appointmentService)
+	apptHandler := http1.NewAppointmentHandler(appointmentService, doctorService)
+	apptHandler.SetBotHandler(botHandler)
 
 	// Run bot updates handling in a separate goroutine
 	if bot != nil {

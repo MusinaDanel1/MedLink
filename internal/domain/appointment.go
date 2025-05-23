@@ -56,6 +56,7 @@ type AppointmentRepository interface {
 	CompleteAppointment(details AppointmentDetails) error
 	ListBySchedules(scheduleIDs []int) ([]Appointment, error)
 	UpdateStatus(id int, status string) error
+	FetchDetails(apptID int) (AppointmentDetails, error)
 }
 
 type ScheduleRepository interface {

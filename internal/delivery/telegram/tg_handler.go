@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"fmt"
 	"telemed/internal/usecase"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -89,4 +90,15 @@ func (h *BotHandler) HandleMessage(msg *tgbotapi.Message) {
 			h.handleUserInput(chatID, text)
 		}
 	}
+}
+
+func (h *BotHandler) SendReport(chatID int64, pdfBytes []byte, apptID int) error {
+	doc := tgbotapi.FileBytes{
+		Name:  fmt.Sprintf("report-%d.pdf", apptID),
+		Bytes: pdfBytes,
+	}
+	// в v5 send raw bytes через NewDocument:
+	msg := tgbotapi.NewDocument(chatID, doc)
+	_, err := h.bot.Send(msg)
+	return err
 }

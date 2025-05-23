@@ -53,3 +53,7 @@ func (s *DoctorService) CreateService(doctorID int, name string) (*domain.Servic
 func (s *DoctorService) GetAllDoctors() ([]domain.Doctor, error) {
 	return s.repo.GetAllDoctors()
 }
+
+func (s *DoctorService) GetSpecializationName(id int) (string, error) {
+	return s.repo.GetSpecializationName(id)
+}

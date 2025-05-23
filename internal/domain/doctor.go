@@ -36,6 +36,7 @@ type DoctorRepository interface {
 	GetDoctorByIIN(iin string) (*Doctor, error)
 	CreateService(doctorID int, name string) (*Service, error)
 	GetAllDoctors() ([]Doctor, error)
+	GetSpecializationName(id int) (string, error)
 }
 
 type DoctorService interface {
@@ -50,4 +51,5 @@ type DoctorService interface {
 	GetDoctorByIIN(iin string) (*Doctor, error)
 	CreateService(doctorID int, name string) (*Service, error)
 	GetAllDoctors() ([]Doctor, error)
+	GetSpecializationName(id int) (string, error)
 }
