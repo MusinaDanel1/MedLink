@@ -16,8 +16,6 @@ WORKDIR /root/
 # Копируем собранное приложение
 COPY --from=builder /app/telemed .
 
-# Копируем .env файл
-COPY .env .
 
 # Копируем шаблоны
 COPY --from=builder /app/templates /root/templates

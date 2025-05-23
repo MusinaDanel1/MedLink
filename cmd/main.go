@@ -21,24 +21,27 @@ import (
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("⚠️  .env файл не найден. Читаем переменные из окружения", err)
-	}
+	_ = godotenv.Load()
 
 	token := os.Getenv("TELEGRAM_BOT_TOKEN")
 	if token == "" {
-		log.Fatal("TELEGRAM_BOT_TOKEN не найден в .env")
+		log.Fatal("TELEGRAM_BOT_TOKEN must be set in environment")
 	}
 
 	openaiKey := os.Getenv("OPENAI_API_KEY")
 	if openaiKey == "" {
-		log.Fatal("OPENAI_API_KEY не установлен в .env")
+		log.Fatal("OPENAI_API_KEY must be set in environment")
 	}
 
-	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		log.Fatal("DATABASE_URL must be set in environment")
+	}
+
+	// 2) Подключаемся к БД
+	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
-		log.Fatal("Fail to connect database", err)
+		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer db.Close()
 
