@@ -1,280 +1,525 @@
 // static/js/appointments.js
 
-// глобальные переменные
+// Global variables
 let apiBaseUrl;
 let apptID;
 let role;
 let patientDetails = null;
 
-// загрузка и отрисовка чата
+// Global chat functions
 async function loadChat() {
-  const params = new URLSearchParams(window.location.search);
-  const id = params.get("appointment_id") || params.get("id");
-  console.log("LOAD CHAT, using appointment ID=", id);
   try {
     const res = await fetch(
-      `${apiBaseUrl}/api/appointments/${id}/messages`
+      `${apiBaseUrl}/api/appointments/${apptID}/messages`
     );
     if (!res.ok) return;
     const messages = await res.json();
-    const msgList = document.getElementById("msgList");
-    msgList.innerHTML = messages
-      .map((m) => {
-        const isMe = m.sender.toLowerCase() === role.toLowerCase();
-        let senderLabel = "Неизвестный";
-        if (m.sender.toLowerCase() === "doctor") {
-          senderLabel = isMe ? "Вы" : "Доктор";
-        } else if (m.sender.toLowerCase() === "patient") {
-          senderLabel = isMe ? "Вы" : "Пациент";
-        } else if (m.sender.toLowerCase() === "bot") {
-          senderLabel = "Система";
-        }
-        return `
-        <div class="message ${isMe ? "me" : "other"}">
+    const msgList = document.getElementById('msgList');
+    msgList.innerHTML = messages.map(m => {
+      const isMe = m.sender.toLowerCase() === role.toLowerCase();
+      let senderLabel = 'Неизвестный';
+      if (m.sender.toLowerCase() === 'doctor') {
+        senderLabel = isMe ? 'Вы' : 'Доктор';
+      } else if (m.sender.toLowerCase() === 'patient') {
+        senderLabel = isMe ? 'Вы' : 'Пациент';
+      } else if (m.sender.toLowerCase() === 'bot') {
+        senderLabel = 'Система';
+      }
+      return `
+        <div class="message ${isMe ? 'me' : 'other'}">
           <div class="bubble">
             <div class="sender">${senderLabel}</div>
             ${m.content}
           </div>
         </div>`;
-      })
-      .join("");
+    }).join('');
     msgList.scrollTop = msgList.scrollHeight;
   } catch (e) {
-    console.error("loadChat error:", e);
+    console.error('loadChat error:', e);
   }
 }
 
-// загрузка и отрисовка данных пациента
+// Load patient details from the API
 async function loadPatientDetails() {
-  const params = new URLSearchParams(window.location.search);
-  const id = params.get("appointment_id") || params.get("id");
-  console.log("LOAD PATIENT DETAILS, using appointment ID=", id);
   try {
-    const res = await fetch(
-      `${apiBaseUrl}/api/appointments/${id}/details`
-    );
+    console.log('Loading patient details for appointment:', apptID);
+    const res = await fetch(`${apiBaseUrl}/api/appointments/${apptID}/details`);
     if (!res.ok) {
-      console.error("Failed to load patient details:", res.status);
+      console.error('Failed to load patient details:', res.status);
       return;
     }
+    
     const data = await res.json();
-    console.log("Patient details loaded:", data);
+    console.log('Patient details loaded:', data);
     patientDetails = data.patient;
+    
+    // Update the patient info in the UI
     updatePatientInfoUI();
   } catch (e) {
-    console.error("loadPatientDetails error:", e);
+    console.error('loadPatientDetails error:', e);
   }
 }
 
-// отрисовка UI данных пациента
+// Update the patient info section with data from the API
 function updatePatientInfoUI() {
   if (!patientDetails) {
-    console.error("No patient details available");
+    console.error('No patient details available');
     return;
   }
-  console.log("Updating UI with patient details:", patientDetails);
-  document.querySelector(".info-grid").innerHTML = `
+  
+  console.log('Updating UI with patient details:', patientDetails);
+  
+  // Update basic patient info
+  document.querySelector('.info-grid').innerHTML = `
     <div class="label">ФИО</div>
-    <div class="value">${patientDetails.full_name||"Нет данных"}</div>
+    <div class="value">${patientDetails.full_name || 'Нет данных'}</div>
     <div class="label">ИИН</div>
-    <div class="value">${patientDetails.iin||"Нет данных"}</div>
+    <div class="value">${patientDetails.iin || 'Нет данных'}</div>
     <div class="label">Telegram ID</div>
-    <div class="value">${patientDetails.telegram_id||"Нет данных"}</div>
+    <div class="value">${patientDetails.telegram_id || 'Нет данных'}</div>
   `;
-  const historySection = document.querySelector(".info-section");
-  // … остальная отрисовка истории пациента …
+  
+  // Update medical history
+  const historySection = document.querySelector('.info-section');
+  
+  // Medical conditions (chronic diseases)
+  const medicalHistory = patientDetails.medical_history || [];
+  const chronicHTML = medicalHistory.length > 0 
+    ? `<ul>${medicalHistory.map(item => `<li>${item.diagnosis} ${item.date ? `(с ${item.date})` : ''}</li>`).join('')}</ul>` 
+    : '<p>Нет данных</p>';
+  
+  // Allergies
+  const allergies = patientDetails.allergies || [];
+  const allergiesHTML = allergies.length > 0
+    ? `<ul>${allergies.map(item => `<li>${item.name}</li>`).join('')}</ul>`
+    : '<p>Нет данных</p>';
+  
+  // Vaccinations
+  const vaccinations = patientDetails.vaccinations || [];
+  const vaccinationsHTML = vaccinations.length > 0
+    ? `<ul>${vaccinations.map(item => `<li>${item.vaccine} — ${item.date ? new Date(item.date).getFullYear() : 'дата неизвестна'}</li>`).join('')}</ul>`
+    : '<p>Нет данных</p>';
+  
+  // Surgeries
+  const surgeries = patientDetails.surgeries || [];
+  const surgeriesHTML = surgeries.length > 0
+    ? `<ul>${surgeries.map(item => `<li>${item.procedure} — ${item.date ? new Date(item.date).getFullYear() : 'дата неизвестна'}</li>`).join('')}</ul>`
+    : '<p>Нет данных</p>';
+  
+  // Examinations
+  const examinations = patientDetails.examinations || [];
+  const examinationsHTML = examinations.length > 0
+    ? `<ul>${examinations.map(item => `<li>${item.exam} — ${item.result} ${item.date ? `(${new Date(item.date).getFullYear()})` : ''}</li>`).join('')}</ul>`
+    : '<p>Нет данных</p>';
+  
+  historySection.innerHTML = `
+    <h3>Хронические заболевания</h3>
+    ${chronicHTML}
+    
+    <h3>Аллергии</h3>
+    ${allergiesHTML}
+    
+    <h3>Прививки</h3>
+    ${vaccinationsHTML}
+    
+    <h3>Операции</h3>
+    ${surgeriesHTML}
+    
+    <h3>Обследования</h3>
+    ${examinationsHTML}
+  `;
 }
 
-// main IIFE — разбирает URL, запускает загрузки и WebRTC/чат
 ;(async function() {
-  console.log("RAW location.search =", window.location.search);
+  // Параметры из URL
+  const params = new URLSearchParams(location.search);
+  apptID = params.get('appointment_id') || params.get('id');
+  role   = params.get('role');
 
-  // 1) Читаем appointment_id и role в глобалы
-  const params = new URLSearchParams(window.location.search);
-  apptID = params.get("appointment_id") || params.get("id");
-  role   = params.get("role");
-  console.log("PARSED apptID =", apptID, "role =", role);
-  if (!apptID || !role) {
-    return alert("Не передан appointment_id или role");
-  }
-
-  // 2) root для API
-  apiBaseUrl = window.location.origin;
-
-  // 3) WS-URL для сигналинга
-  const wsUrl =
-    `${location.protocol.replace("http","ws")}//${location.host}` +
-    `/ws?appointment_id=${apptID}&role=${role}`;
-
-  // 4) Загрузить данные пациента
+  apiBaseUrl = `${location.protocol}//${location.hostname}:8080`;
+  const wsUrl = `${location.protocol.replace('http','ws')}//` +
+                `${location.hostname}:8080/ws?appointment_id=${apptID}&role=${role}`;
+  
+  // Always load patient details regardless of role
   await loadPatientDetails();
 
-  // 5) Инициализировать чат/сайдбар
-  const chatPanel  = document.getElementById("chat-panel");
-  const sidebar    = document.querySelector(".sidebar");
-  const toggleChat = document.getElementById("toggleChat");
-  const closeChat  = document.getElementById("closeChat");
+  // Initialize chat panel
+  const chatPanel = document.getElementById('chat-panel');
+  const sidebar = document.querySelector('.sidebar');
+  const toggleChatBtn = document.getElementById('toggleChat');
+  const closeChatBtn = document.getElementById('closeChat');
 
-  if (role === "patient") {
-    sidebar.style.display    = "none";
-    chatPanel.style.display  = "flex";
-    toggleChat.style.display = "none";
+  // Hide sidebar for patient, show only chat
+  if (role === 'patient') {
+    if (sidebar) sidebar.style.display = 'none';
+    if (chatPanel) chatPanel.style.display = 'flex';
+    if (toggleChatBtn) toggleChatBtn.style.display = 'none';
   } else {
-    sidebar.style.display    = "flex";
-    chatPanel.style.display  = "none";
-    toggleChat.style.display = "inline-flex";
+    // Doctor: show sidebar, hide chat by default
+    if (sidebar) sidebar.style.display = 'flex';
+    if (chatPanel) chatPanel.style.display = 'none';
+    if (toggleChatBtn) toggleChatBtn.style.display = 'inline-flex';
   }
-  toggleChat.onclick = () => {
-    if (chatPanel.style.display === "none") {
-      chatPanel.style.display = "flex";
-      sidebar.style.display   = "none";
+
+  // Chat toggle button handler
+  toggleChatBtn.onclick = () => {
+    console.log('Toggle chat clicked');
+    if (chatPanel.style.display === 'none') {
+      // Show chat, hide sidebar
+      chatPanel.style.display = 'flex';
+      sidebar.style.display = 'none';
       loadChat();
     } else {
-      chatPanel.style.display = "none";
-      sidebar.style.display   = "flex";
+      // Hide chat, show sidebar
+      chatPanel.style.display = 'none';
+      sidebar.style.display = 'block';
     }
   };
-  closeChat.onclick = () => {
-    chatPanel.style.display = "none";
-    sidebar.style.display   = "flex";
+
+  // Close chat button handler
+  closeChatBtn.onclick = () => {
+    console.log('Close chat clicked');
+    chatPanel.style.display = 'none';
+    sidebar.style.display = 'block';
   };
 
-  // 6) Настройка WebRTC
+  // ===== WebRTC setup =====
   const pc = new RTCPeerConnection({
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
   });
+  pc.onicecandidate = ({ candidate }) => {
+    if (candidate && ws.readyState === 1) {
+      ws.send(JSON.stringify({ type: 'candidate', data: candidate }));
+    }
+  };
+  pc.ontrack = e => {
+    document.getElementById('remote').srcObject = e.streams[0];
+  };
 
-  // 7) Локальное медиа
   let localStream;
   try {
     localStream = await navigator.mediaDevices.getUserMedia({
-      video: true, audio: true
+      video: true,
+      audio: true
     });
-    document.getElementById("local").srcObject = localStream;
-    localStream.getTracks().forEach((t) => pc.addTrack(t, localStream));
+    document.querySelector('.local video').srcObject = localStream;
+    localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
   } catch (e) {
-    console.error("getUserMedia error:", e);
+    console.error('getUserMedia error:', e);
   }
 
-  // 8) Сигналинг по WebSocket
+  // ===== WebSocket сигнализация =====
   const ws = new WebSocket(wsUrl);
   ws.onopen = async () => {
-    if (role === "doctor") {
+    if (role === 'doctor') {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      ws.send(JSON.stringify({ type: "offer", sdp: pc.localDescription }));
+      ws.send(JSON.stringify({ type: 'offer', data: offer }));
     }
   };
-  ws.onmessage = async ({data}) => {
+  ws.onmessage = async ({ data }) => {
     const msg = JSON.parse(data);
-    if (msg.type === "offer") {
-      await pc.setRemoteDescription(msg.sdp);
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      ws.send(JSON.stringify({ type: "answer", sdp: pc.localDescription }));
-    } else if (msg.type === "answer") {
-      await pc.setRemoteDescription(msg.sdp);
-    } else if (msg.type === "candidate") {
-      try { await pc.addIceCandidate(msg.candidate); }
-      catch(e){ console.warn("addIceCandidate error:", e); }
+    if (msg.type === 'offer') {
+      await pc.setRemoteDescription(msg.data);
+      const ans = await pc.createAnswer();
+      await pc.setLocalDescription(ans);
+      ws.send(JSON.stringify({ type: 'answer', data: ans }));
+    } else if (msg.type === 'answer') {
+      await pc.setRemoteDescription(msg.data);
+    } else if (msg.type === 'candidate') {
+      try {
+        await pc.addIceCandidate(msg.data);
+      } catch (e) {
+        console.warn('addIceCandidate error:', e);
+      }
     }
   };
-  ws.onerror = e => console.error("WS error:", e);
-  ws.onclose = () => console.log("WS closed");
+  ws.onerror = e => console.error('WS error:', e);
+  ws.onclose = () => console.log('WS closed');
 
-  // 9) ICE → WS
-  pc.onicecandidate = ({candidate}) => {
-    if (candidate && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "candidate", candidate }));
-    }
+  // ===== Кнопки управления микрофон/камера/завершить =====
+  document.getElementById('toggleMic').onclick = () => {
+    const track = localStream.getAudioTracks()[0];
+    track.enabled = !track.enabled;
+    document.getElementById('toggleMic').style.opacity =
+      track.enabled ? 1 : 0.5;
   };
-
-  // 10) Рисуем remote-поток
-  pc.ontrack = (e) => {
-    document.getElementById("remote").srcObject = e.streams[0];
+  document.getElementById('toggleCamera').onclick = () => {
+    const track = localStream.getVideoTracks()[0];
+    track.enabled = !track.enabled;
+    document.getElementById('toggleCamera').style.opacity =
+      track.enabled ? 1 : 0.5;
   };
-
-  // 11) Кнопки mic/cam/end
-  document.getElementById("toggleMic").onclick = () => {
-    if (!localStream) return;
-    const t = localStream.getAudioTracks()[0];
-    t.enabled = !t.enabled;
-    document.getElementById("toggleMic").style.opacity = t.enabled?"1":"0.5";
-  };
-  document.getElementById("toggleCamera").onclick = () => {
-    if (!localStream) return;
-    const t = localStream.getVideoTracks()[0];
-    t.enabled = !t.enabled;
-    document.getElementById("toggleCamera").style.opacity = t.enabled?"1":"0.5";
-  };
-  document.getElementById("endCall").onclick = () => {
+  document.getElementById('endCall').onclick = () => {
     pc.close();
     ws.close();
   };
 
-  // 12) Чат: отправка сообщений
-  async function sendMessage(txt) {
+  // ===== Функции работы с чатом =====
+  async function sendMessage(text) {
     try {
-      await fetch(
+      const res = await fetch(
         `${apiBaseUrl}/api/appointments/${apptID}/messages`,
         {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sender: role, content: txt })
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sender: role, content: text })
         }
       );
+      return res.ok ? res.json() : null;
     } catch (e) {
-      console.error("sendMessage error:", e);
+      console.error('sendMessage error:', e);
+      return null;
     }
   }
-  const msgInput = document.getElementById("msgInput");
-  const msgBtn   = document.getElementById("sendBtn");
-  msgBtn.onclick = async () => {
-    const txt = msgInput.value.trim();
+
+  // ===== Элементы чата =====
+  const msgList = document.getElementById('msgList');
+  const inp = document.getElementById('msgInput');
+  const sendBtn = document.getElementById('sendBtn');
+
+  // Отправка по клику
+  sendBtn.addEventListener('click', async () => {
+    const txt = inp.value.trim();
     if (!txt) return;
     await sendMessage(txt);
-    msgInput.value = "";
-    loadChat();
-  };
-  msgInput.addEventListener("keypress", e => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault(); msgBtn.click();
+    inp.value = '';
+    await loadChat();
+  });
+
+  // Отправка по Enter
+  inp.addEventListener('keypress', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendBtn.click();
     }
   });
 
-  // 13) Запускаем чат
+  // Первичная и периодическая загрузка чата
   loadChat();
   setInterval(loadChat, 3000);
 
-  // Скрыть крестик для пациента
-  if (role === "patient") {
-    closeChat.style.display = "none";
+  if (role === 'patient') {
+    if (closeChatBtn) closeChatBtn.style.display = 'none';
   }
-})();
+})();  // конец IIFE
 
 // ===== Переключение вкладок (таб-меню) =====
-;(function() {
-  const tabLinks = document.querySelectorAll(".tab-link");
-  const tabPanes = document.querySelectorAll(".tab-pane");
-  if (!tabLinks.length || !tabPanes.length) {
-    console.warn("Tab toggler: no .tab-link or .tab-pane found");
+document.querySelectorAll('.tab-link').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-link').forEach(b =>
+      b.classList.remove('active')
+    );
+    document.querySelectorAll('.tab-pane').forEach(p =>
+      p.classList.remove('active')
+    );
+    btn.classList.add('active');
+    const tabId = 'tab-' + btn.dataset.tab;
+    document.getElementById(tabId).classList.add('active');
+    
+    // Load diagnoses when the diagnosis tab is clicked
+    if (btn.dataset.tab === 'diagnosis') {
+      loadDiagnoses();
+    }
+  });
+});
+
+// ===== Загрузка и обработка диагнозов =====
+let diagnosesData = [];
+
+// Load diagnoses when the page loads, not just when the tab is clicked
+document.addEventListener('DOMContentLoaded', () => {
+  // Load diagnoses with a slight delay to ensure all DOM elements are ready
+  setTimeout(() => {
+    loadDiagnoses();
+  }, 500);
+});
+
+async function loadDiagnoses() {
+  const diagnosesListEl = document.getElementById('diagnosesList');
+  
+  if (!diagnosesListEl) return; // Exit if element doesn't exist yet
+  
+  try {
+    // Check if we already have diagnoses loaded
+    if (diagnosesData.length > 0) {
+      renderDiagnosesList(diagnosesData);
+      return;
+    }
+    
+    const response = await fetch(`${apiBaseUrl}/api/diagnoses`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data.success && Array.isArray(data.data)) {
+      diagnosesData = data.data;
+      renderDiagnosesList(diagnosesData);
+    } else {
+      diagnosesListEl.innerHTML = '<div class="loading">Ошибка при загрузке диагнозов</div>';
+    }
+  } catch (error) {
+    console.error('Error loading diagnoses:', error);
+    diagnosesListEl.innerHTML = '<div class="loading">Ошибка при загрузке диагнозов</div>';
+  }
+}
+
+function renderDiagnosesList(diagnoses) {
+  const diagnosesListEl = document.getElementById('diagnosesList');
+  
+  if (!diagnosesListEl) return; // Safety check
+  
+  if (!diagnoses || diagnoses.length === 0) {
+    diagnosesListEl.innerHTML = '<div class="loading">Нет доступных диагнозов</div>';
     return;
   }
-  tabLinks.forEach(link => {
-    link.addEventListener("click", () => {
-      // 1) Снять active везде
-      tabLinks.forEach(l => l.classList.remove("active"));
-      tabPanes.forEach(p => p.classList.remove("active"));
-      // 2) Установить active на кнопку и нужную панель
-      link.classList.add("active");
-      const pane = document.getElementById("tab-" + link.dataset.tab);
-      if (pane) pane.classList.add("active");
-
-      // 3) Для вкладки «diagnosis» можно загрузить диагнозы
-      if (link.dataset.tab === "diagnosis") {
-        loadDiagnoses();
-      }
+  
+  let html = '';
+  diagnoses.forEach(diagnosis => {
+    html += `
+      <div class="diagnosis-item" data-id="${diagnosis.id}" data-code="${diagnosis.code}" data-name="${diagnosis.name}">
+        <span class="code">${diagnosis.code}</span>
+        <span class="name">${diagnosis.name}</span>
+      </div>
+    `;
+  });
+  
+  diagnosesListEl.innerHTML = html;
+  
+  // Add click handlers to diagnosis items
+  document.querySelectorAll('.diagnosis-item').forEach(item => {
+    item.addEventListener('click', () => {
+      selectDiagnosis(item);
     });
   });
-})();
+}
 
+function selectDiagnosis(item) {
+  // Get diagnosis data
+  const id = item.getAttribute('data-id');
+  const code = item.getAttribute('data-code');
+  const name = item.getAttribute('data-name');
+  
+  // Store the diagnosis value
+  const diagnosisInput = document.getElementById('diagnosis');
+  if (diagnosisInput) {
+    diagnosisInput.value = `${code} — ${name}`;
+  }
+  
+  // Update the display
+  const diagnosisDisplay = document.getElementById('diagnosisDisplay');
+  if (diagnosisDisplay) {
+    diagnosisDisplay.textContent = `${code} — ${name}`;
+  }
+  
+  // Show the selected diagnosis section
+  const selectedDiagnosis = document.getElementById('selectedDiagnosis');
+  if (selectedDiagnosis) {
+    selectedDiagnosis.style.display = 'block';
+  }
+  
+  // Highlight the selected item
+  document.querySelectorAll('.diagnosis-item').forEach(i => {
+    i.classList.remove('selected');
+  });
+  item.classList.add('selected');
+}
+
+// Search functionality for diagnoses - updated for real-time filtering
+const diagnosisSearchInput = document.getElementById('diagnosisSearch');
+if (diagnosisSearchInput) {
+  diagnosisSearchInput.addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase();
+    
+    if (!diagnosesData.length) return;
+    
+    const filteredDiagnoses = diagnosesData.filter(diagnosis => 
+      diagnosis.code.toLowerCase().includes(searchTerm) ||
+      diagnosis.name.toLowerCase().includes(searchTerm)
+    );
+    
+    renderDiagnosesList(filteredDiagnoses);
+    
+    // If search is empty, clear selection
+    if (!searchTerm) {
+      const selectedDiagnosis = document.getElementById('selectedDiagnosis');
+      if (selectedDiagnosis) {
+        selectedDiagnosis.style.display = 'none';
+      }
+    }
+  });
+}
+
+// ===== Логика «Рецептов» =====
+const addBtn   = document.getElementById('addPrescriptionBtn');
+const wrapper  = document.getElementById('prescriptionsWrapper');
+const presTbody= document.querySelector('#prescriptionsTable tbody');
+const medInput = document.getElementById('presMed');
+const doseInput= document.getElementById('presDose');
+const schedInput = document.getElementById('presSchedule');
+
+addBtn.addEventListener('click', () => {
+  const med   = medInput.value.trim();
+  const dose  = doseInput.value.trim();
+  const sched = schedInput.value.trim();
+  if (!med || !dose || !sched) {
+    alert('Пожалуйста, заполните все поля.');
+    return;
+  }
+  const row = document.createElement('tr');
+  row.innerHTML = `
+    <td>${med}</td>
+    <td>${dose}</td>
+    <td>${sched}</td>
+    <td><button class="remove-btn">❌</button></td>
+  `;
+  presTbody.appendChild(row);
+  wrapper.style.display = 'block';
+  medInput.value = doseInput.value = schedInput.value = '';
+  medInput.focus();
+
+  row.querySelector('.remove-btn').addEventListener('click', () => {
+    row.remove();
+    if (!presTbody.querySelector('tr')) {
+      wrapper.style.display = 'none';
+    }
+  });
+});
+
+// ===== Сохранение приёма =====
+document.getElementById('saveBtn').addEventListener('click', async () => {
+  const diagnosisValue = document.getElementById('diagnosis').value;
+  
+  const data = {
+    complaints: document.getElementById('complaint').value,
+    diagnosis:  diagnosisValue,
+    assignment: document.getElementById('assignText').value,
+    prescriptions: Array.from(
+      document.querySelectorAll('#prescriptionsTable tbody tr')
+    ).map(r => ({
+      med:      r.children[0].textContent,
+      dose:     r.children[1].textContent,
+      schedule: r.children[2].textContent
+    }))
+  };
+  
+  try {
+    const response = await fetch(`/api/appointments/${apptID}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    
+    if (response.ok) {
+      alert('Приём сохранён и отправлен пациенту');
+    } else {
+      alert('Ошибка при сохранении: ' + (await response.text()));
+    }
+  } catch (error) {
+    console.error('Error saving appointment:', error);
+    alert('Ошибка при сохранении приёма');
+  }
+});
