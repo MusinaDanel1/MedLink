@@ -190,13 +190,23 @@ function updatePatientInfoUI() {
 
   // ===== WebRTC setup =====
   const pc = new RTCPeerConnection({
-    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      {
+        urls: 'turn:numb.viagenie.ca:3478',
+        username: 'webrtc@live.com',
+        credential: 'muazkh'
+      }
+    ]
   });
-  pc.onicecandidate = ({ candidate }) => {
-    if (candidate && ws.readyState === 1) {
-      ws.send(JSON.stringify({ type: 'candidate', data: candidate }));
+
+  pc.onicecandidate = e => {
+    console.log('ICE candidate:', e.candidate);
+    if (e.candidate && ws.readyState === 1) {
+      ws.send(JSON.stringify({ type: 'candidate', data: e.candidate }));
     }
   };
+
   pc.ontrack = e => {
     document.getElementById('remote').srcObject = e.streams[0];
   };

@@ -34,3 +34,17 @@ services:
 
 volumes:
   postgres-data:
+
+coturn:
+    image: coturn/coturn:latest
+    container_name: telemed_coturn
+    ports:
+      - "3478:3478/udp"
+      - "3478:3478/tcp"
+    volumes:
+      - ./turnserver.conf:/etc/coturn/turnserver.conf:ro
+    restart: unless-stopped
+
+networks:
+  default:
+    driver: bridge
