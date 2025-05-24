@@ -285,6 +285,9 @@ func main() {
 	r.GET("/login", func(c *gin.Context) {
 		authHandler.ShowLoginForm(c.Writer, c.Request)
 	})
+	r.GET("/main", func(c *gin.Context) {
+		authHandler.ShowMainForm(c.Writer, c.Request)
+	})
 	r.POST("/login", func(c *gin.Context) {
 		authHandler.Login(c.Writer, c.Request)
 	})
