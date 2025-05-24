@@ -193,7 +193,10 @@ function updatePatientInfoUI() {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       {
-        urls: 'turn:numb.viagenie.ca:3478',
+        urls: [
+          'turn:telemed-76fw.onrender.com:3478?transport=udp',
+          'turn:telemed-76fw.onrender.com:3478?transport=tcp'
+        ],
         username: 'webrtc@live.com',
         credential: 'muazkh'
       }
