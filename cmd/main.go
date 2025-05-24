@@ -224,6 +224,13 @@ func main() {
 
 	// Auth routes
 	mux := http.NewServeMux()
+	mux.HandleFunc("/main", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			authHandler.ShowMainForm(w, r)
+			return
+		}
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+	})
 	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			authHandler.ShowLoginForm(w, r)

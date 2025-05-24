@@ -43,6 +43,25 @@ func (h *AuthHandler) ShowLoginForm(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, htmlPath)
 }
 
+func (h *AuthHandler) ShowMainForm(w http.ResponseWriter, r *http.Request) {
+	execPath, err := os.Getwd()
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	htmlPath := filepath.Join(execPath, "templates", "main.html")
+
+	log.Println("Looking for HTML file at:", htmlPath)
+
+	if _, err := os.Stat(htmlPath); os.IsNotExist(err) {
+		log.Println("File not found:", htmlPath)
+		http.Error(w, "File not found", http.StatusNotFound)
+		return
+	}
+
+	http.ServeFile(w, r, htmlPath)
+}
+
 type loginRequest struct {
 	IIN      string `json:"iin"`
 	Password string `json:"password"`
