@@ -189,16 +189,27 @@ function updatePatientInfoUI() {
   };
 
   // ===== WebRTC setup =====
+  // const pc = new RTCPeerConnection({
+  //   iceServers: [
+  //     { urls: 'stun:stun.l.google.com:19302' },
+  //     {
+  //       urls: [
+  //         'turn:telemed-76fw.onrender.com:3478?transport=udp',
+  //         'turn:telemed-76fw.onrender.com:3478?transport=tcp'
+  //       ],
+  //       username: 'webrtc@live.com',
+  //       credential: 'muazkh'
+  //     }
+  //   ]
+  // });
   const pc = new RTCPeerConnection({
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
+      // Free TURN servers (may be unreliable)
       {
-        urls: [
-          'turn:telemed-76fw.onrender.com:3478?transport=udp',
-          'turn:telemed-76fw.onrender.com:3478?transport=tcp'
-        ],
-        username: 'webrtc@live.com',
-        credential: 'muazkh'
+        urls: 'turn:openrelay.metered.ca:80',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
       }
     ]
   });
@@ -235,6 +246,13 @@ function updatePatientInfoUI() {
       ws.send(JSON.stringify({ type: 'offer', data: offer }));
     }
   };
+  ws.onerror = e => {
+    console.error('❌ WebSocket error:', e); // Add this
+  };
+  ws.onclose = e => {
+    console.log('🔌 WebSocket closed:', e.code, e.reason); // Add this
+  };
+
   ws.onmessage = async ({ data }) => {
     const msg = JSON.parse(data);
     if (msg.type === 'offer') {
