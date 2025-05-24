@@ -205,14 +205,19 @@ function updatePatientInfoUI() {
   const pc = new RTCPeerConnection({
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
-      // Free TURN servers (may be unreliable)
       {
         urls: 'turn:openrelay.metered.ca:80',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      },
+      {
+        urls: 'turn:openrelay.metered.ca:443',
         username: 'openrelayproject',
         credential: 'openrelayproject'
       }
     ]
   });
+  
 
   pc.onicecandidate = e => {
     console.log('ICE candidate:', e.candidate);
@@ -224,6 +229,15 @@ function updatePatientInfoUI() {
   pc.ontrack = e => {
     document.getElementById('remote').srcObject = e.streams[0];
   };
+
+  pc.oniceconnectionstatechange = () => {
+    console.log('ICE connection state:', pc.iceConnectionState);
+  };
+  
+  pc.onconnectionstatechange = () => {
+    console.log('Connection state:', pc.connectionState);
+  };
+  
 
   let localStream;
   try {
