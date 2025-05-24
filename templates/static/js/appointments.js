@@ -136,10 +136,15 @@ function updatePatientInfoUI() {
   apptID = params.get('appointment_id') || params.get('id');
   role   = params.get('role');
 
-  apiBaseUrl = `${location.protocol}//${location.hostname}:8080`;
-  const wsUrl = `${location.protocol.replace('http','ws')}//` +
-                `${location.hostname}:8080/ws?appointment_id=${apptID}&role=${role}`;
-  
+  // в начале IIFE
+  apiBaseUrl = window.location.origin;               // http(s)://domain.com
+  const wsProtocol = location.protocol === 'https:' 
+                     ? 'wss:' 
+                     : 'ws:';
+  const wsUrl = `${wsProtocol}//${location.host}/ws?` +
+                `appointment_id=${apptID}&role=${role}`;
+
+
   // Always load patient details regardless of role
   await loadPatientDetails();
 
