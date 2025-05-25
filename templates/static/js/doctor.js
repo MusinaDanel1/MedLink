@@ -203,7 +203,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Функция для обновления поиска пациентов
   function updatePatientSearch() {
     const searchInput = document.getElementById("patientSearch");
-    const dropdown = document.getElementById("patientSelect");
     
     searchInput.addEventListener("input", (e) => {
       const searchTerm = e.target.value.toLowerCase();
@@ -215,12 +214,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       
       const filteredPatients = allPatients.filter((patient) => {
         if (!patient) return false;
+        
+        // Используем те же переменные, что объявили
         const fullName = patient.full_name || patient.name || '';
         const iin = patient.iin || '';
-
+  
         return (
-          patient.full_name.toLowerCase().includes(searchTerm) ||
-          patient.iin.includes(searchTerm)
+          fullName.toLowerCase().includes(searchTerm) ||
+          iin.includes(searchTerm)
         );
       });
       
