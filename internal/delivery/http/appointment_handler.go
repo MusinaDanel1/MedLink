@@ -318,3 +318,41 @@ type CompleteAppointmentRequest struct {
 		Schedule string `json:"schedule"`
 	} `json:"prescriptions"`
 }
+
+// GET /api/appointments/:id/status
+func (h *AppointmentHandler) GetAppointmentStatus(c *gin.Context) {
+	apptID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(400, gin.H{"error": "invalid appointment ID"})
+		return
+	}
+
+	appt, err := h.apptSvc.GetAppointmentByID(apptID)
+	if err != nil {
+		c.JSON(404, gin.H{"error": "appointment not found"})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"status": appt.Status,
+	})
+}
+
+// PUT /api/appointments/:id/end-call
+func (h *AppointmentHandler) EndCall(c *gin.Context) {
+	apptID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(400, gin.H{"error": "invalid appointment ID"})
+		return
+	}
+
+	if err := h.apptSvc.EndCall(apptID); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"status":  "completed",
+		"message": "Call ended successfully",
+	})
+}

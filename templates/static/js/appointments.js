@@ -138,13 +138,37 @@ function updatePatientInfoUI() {
 
   // в начале IIFE
   apiBaseUrl = window.location.origin;               // http(s)://domain.com
+
+  try {
+    const statusResponse = await fetch(`${apiBaseUrl}/api/appointments/${apptID}/status`);
+    const statusData = await statusResponse.json();
+    
+    if (statusData.status === 'completed') {
+      // Показать сообщение о завершенном приеме
+      document.body.innerHTML = `
+        <div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; font-family: Arial, sans-serif;">
+          <div style="text-align: center; padding: 40px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); background: white;">
+            <h2 style="color: #666; margin-bottom: 20px;">📞 Прием завершен</h2>
+            <p style="color: #888; margin-bottom: 30px;">Этот видеозвонок уже завершен и больше недоступен.</p>
+            <button onclick="window.close()" style="background: #007bff; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-size: 16px;">
+              Закрыть
+            </button>
+          </div>
+        </div>
+      `;
+      return; // Прерываем инициализацию
+    }
+  } catch (error) {
+    console.error('Error checking appointment status:', error);
+  }
+
   const wsProtocol = location.protocol === 'https:' 
                      ? 'wss:' 
                      : 'ws:';
   const wsUrl = `${wsProtocol}//${location.host}/ws?` +
                 `appointment_id=${apptID}&role=${role}`;
 
-
+  
   // Always load patient details regardless of role
   await loadPatientDetails();
 
@@ -316,9 +340,60 @@ function updatePatientInfoUI() {
     document.getElementById('toggleCamera').style.opacity =
       track.enabled ? 1 : 0.5;
   };
-  document.getElementById('endCall').onclick = () => {
-    pc.close();
-    ws.close();
+  document.getElementById('endCall').onclick = async () => {
+    const confirmEnd = confirm('Вы уверены, что хотите завершить звонок?');
+    if (!confirmEnd) return;
+    
+    try {
+      // 1. Закрываем WebRTC соединения
+      pc.close();
+      ws.close();
+      
+      // 2. Останавливаем локальный поток
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+      }
+      
+      // 3. Отправляем запрос на завершение приема
+      const response = await fetch(`${apiBaseUrl}/api/appointments/${apptID}/complete`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      
+      if (response.ok) {
+        // 4. Показываем сообщение об успешном завершении
+        alert('✅ Звонок успешно завершен');
+        
+        // 5. Закрываем страницу или переходим назад
+        closeAndGoBack();
+      } else {
+        alert('❌ Ошибка при завершении звонка');
+      }
+    } catch (error) {
+      console.error('Error ending call:', error);
+      alert('❌ Ошибка при завершении звонка');
+    }
+  };
+
+  // Функция для закрытия страницы
+  window.closeAndGoBack = function() {
+    try {
+      // Пытаемся закрыть текущую вкладку
+      window.close();
+      
+      // Если браузер не позволяет закрыть, переходим назад
+      setTimeout(() => {
+        if (window.history.length > 1) {
+          window.history.back();
+        } else {
+          // Если нет истории, переходим на главную
+          window.location.href = '/';
+        }
+      }, 500);
+    } catch (e) {
+      // Fallback - переход на главную страницу
+      window.location.href = '/';
+    }
   };
 
   // ===== Функции работы с чатом =====

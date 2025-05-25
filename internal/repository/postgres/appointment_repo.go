@@ -32,7 +32,7 @@ func (r *AppointmentRepository) MarkTimeslotAsBooked(timeslotID int) error {
 }
 
 func (r *AppointmentRepository) GetAppointmentByID(id int) (*domain.Appointment, error) {
-	query := `SELECT id, patient_id, doctor_id, service_id, timeslot_id, created_at 
+	query := `SELECT id, patient_id, doctor_id, service_id, status, timeslot_id, created_at 
 			  FROM appointments WHERE id = $1`
 	row := r.db.QueryRow(query, id)
 
@@ -42,6 +42,7 @@ func (r *AppointmentRepository) GetAppointmentByID(id int) (*domain.Appointment,
 		&appt.PatientID,
 		&appt.DoctorID,
 		&appt.ServiceID,
+		&appt.Status,
 		&appt.TimeslotID,
 		&appt.CreatedAt,
 	)

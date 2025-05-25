@@ -86,3 +86,15 @@ func (u *AppointmentService) AcceptAppointment(apptID int) (string, error) {
 func (s *AppointmentService) GetAppointmentDetails(id int) (domain.AppointmentDetails, error) {
 	return s.repo.FetchDetails(id)
 }
+
+func (s *AppointmentService) EndCall(appointmentID int) error {
+	return s.repo.UpdateStatus(appointmentID, "completed")
+}
+
+func (s *AppointmentService) GetAppointmentStatus(appointmentID int) (string, error) {
+	appt, err := s.repo.GetAppointmentByID(appointmentID)
+	if err != nil {
+		return "", err
+	}
+	return appt.Status, nil
+}

@@ -337,6 +337,8 @@ func main() {
 	r.GET("/api/doctors", doctorHandler.GetAllDoctors)
 	r.GET("/api/schedules", schedH.GetSchedules)
 	r.POST("/api/schedules", schedH.CreateSchedule)
+	r.GET("/:id/status", apptHandler.GetAppointmentDetails)
+	r.PUT("/:id/end-call", apptHandler.EndCall)
 
 	// Start Gin server on port 8080
 	log.Printf("Server starting at http://localhost:8080")
