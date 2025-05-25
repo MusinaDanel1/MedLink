@@ -3,8 +3,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function parseLocalDateTime(isoString) {
     const dt = new Date(isoString);
-    dt.setTime(dt.getTime() + dt.getTimezoneOffset() * 60 * 1000);
-    return dt;
+  // Проверяем, нужна ли коррекция
+  console.log('Original ISO string:', isoString);
+  console.log('Parsed date:', dt);
+  console.log('Local time:', dt.toLocaleString());
+  return dt;
   }
 
   const calendarEl = document.getElementById("calendar");
@@ -251,6 +254,13 @@ function updatePatientSearch() {
       minute: "2-digit",
       hour12: false,
     },
+    eventTimeFormat: {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    },
+    slotMinTime: '00:00:00',
+    slotMaxTime: '24:00:00',
     events: fetchEvents,
     selectable: true,
     select: (info) => {
@@ -438,6 +448,16 @@ function updatePatientSearch() {
       return;
     }
 
+    console.log("Sending appointment data:");
+    console.log("Start time input value:", startTime);
+    console.log("End time input value:", endTime);
+  
+    const startISO = new Date(startTime).toISOString();
+    const endISO = new Date(endTime).toISOString();
+  
+    console.log("Start ISO:", startISO);
+    console.log("End ISO:", endISO);
+
     try {
       const response = await fetch("/api/appointments", {
         method: "POST",
@@ -445,8 +465,8 @@ function updatePatientSearch() {
         body: JSON.stringify({
           scheduleId: +scheduleId,
           patientId: +patientId,
-          start: new Date(startTime).toISOString(),
-          end: new Date(endTime).toISOString(),
+          start: startISO,
+          end: endISO,
         }),
       });
 
