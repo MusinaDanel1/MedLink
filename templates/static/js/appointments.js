@@ -355,10 +355,40 @@ function updatePatientInfoUI() {
       }
       
       // 3. Отправляем запрос на завершение приема
-      const response = await fetch(`${apiBaseUrl}/api/appointments/${apptID}/complete`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-      });
+      document.getElementById('endCall').onclick = async () => {
+        const confirmEnd = confirm('Вы уверены, что хотите завершить звонок?');
+        if (!confirmEnd) return;
+        
+        try {
+          // 1. Закрываем WebRTC соединения
+          pc.close();
+          ws.close();
+          
+          // 2. Останавливаем локальный поток
+          if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+          }
+          
+          // 3. ✅ ИСПРАВЛЕННЫЙ URL:
+          const response = await fetch(`${apiBaseUrl}/api/appointments/${apptID}/end-call`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+          });
+          
+          if (response.ok) {
+            alert('✅ Звонок успешно завершен');
+            closeAndGoBack();
+          } else {
+            const errorText = await response.text();
+            console.error('❌ Server error:', errorText);
+            alert('❌ Ошибка при завершении звонка: ' + errorText);
+          }
+        } catch (error) {
+          console.error('Error ending call:', error);
+          alert('❌ Ошибка при завершении звонка');
+        }
+      };
+      
       
       if (response.ok) {
         // 4. Показываем сообщение об успешном завершении
