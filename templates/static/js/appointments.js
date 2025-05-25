@@ -189,54 +189,70 @@ function updatePatientInfoUI() {
   };
 
   // ===== WebRTC setup =====
-  // const pc = new RTCPeerConnection({
-  //   iceServers: [
-  //     { urls: 'stun:stun.l.google.com:19302' },
-  //     {
-  //       urls: [
-  //         'turn:telemed-76fw.onrender.com:3478?transport=udp',
-  //         'turn:telemed-76fw.onrender.com:3478?transport=tcp'
-  //       ],
-  //       username: 'webrtc@live.com',
-  //       credential: 'muazkh'
-  //     }
-  //   ]
-  // });
   const pc = new RTCPeerConnection({
     iceServers: [
+      // STUN серверы
       { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun.relay.metered.ca:80' },
+      
+      // TURN серверы с вашими credentials
       {
-        urls: 'turn:openrelay.metered.ca:80',
-        username: 'openrelayproject',
-        credential: 'openrelayproject'
+        urls: 'turn:a.relay.metered.ca:80',
+        username: '47151ac2891d3c7c94c93235',
+        credential: 'SzrCSFOALGQJO+da'
       },
       {
-        urls: 'turn:openrelay.metered.ca:443',
-        username: 'openrelayproject',
-        credential: 'openrelayproject'
+        urls: 'turn:a.relay.metered.ca:80?transport=tcp',
+        username: '47151ac2891d3c7c94c93235',
+        credential: 'SzrCSFOALGQJO+da'
+      },
+      {
+        urls: 'turn:a.relay.metered.ca:443',
+        username: '47151ac2891d3c7c94c93235',
+        credential: 'SzrCSFOALGQJO+da'
+      },
+      {
+        urls: 'turns:a.relay.metered.ca:443?transport=tcp',
+        username: '47151ac2891d3c7c94c93235',
+        credential: 'SzrCSFOALGQJO+da'
       }
     ]
   });
   
 
   pc.onicecandidate = e => {
-    console.log('ICE candidate:', e.candidate);
-    if (e.candidate && ws.readyState === 1) {
-      ws.send(JSON.stringify({ type: 'candidate', data: e.candidate }));
+    if (e.candidate) {
+      console.log('🔗 ICE candidate:', e.candidate.type, e.candidate.candidate);
+      if (e.candidate.type === 'relay') {
+        console.log('✅ TURN сервер работает!');
+      }
+      if (ws.readyState === 1) {
+        ws.send(JSON.stringify({ type: 'candidate', data: e.candidate }));
+      }
     }
   };
+  
 
   pc.ontrack = e => {
     document.getElementById('remote').srcObject = e.streams[0];
   };
 
   pc.oniceconnectionstatechange = () => {
-    console.log('ICE connection state:', pc.iceConnectionState);
+    console.log('🌐 ICE connection state:', pc.iceConnectionState);
+    
+    if (pc.iceConnectionState === 'connected') {
+      console.log('✅ Видеозвонок подключен успешно!');
+    } else if (pc.iceConnectionState === 'failed') {
+      console.log('❌ Не удалось подключиться. Проверьте TURN сервер.');
+    } else if (pc.iceConnectionState === 'checking') {
+      console.log('🔍 Проверка соединения...');
+    }
   };
   
   pc.onconnectionstatechange = () => {
-    console.log('Connection state:', pc.connectionState);
+    console.log('🔌 Connection state:', pc.connectionState);
   };
+  
   
 
   let localStream;
