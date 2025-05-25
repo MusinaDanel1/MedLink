@@ -52,29 +52,34 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       
       // Update doctor services list in sidebar
-      const servicesList = document.getElementById('servicesList');
+      const serviceSelector = document.getElementById('serviceSelector');
+      serviceSelector.innerHTML = '';
+      
       if (doctor.services && doctor.services.length > 0) {
         console.log(`Found ${doctor.services.length} services for doctor:`, doctor.services);
+        
         doctor.services.forEach(service => {
-          const li = document.createElement('li');
-          li.className = 'list-group-item';
-          li.textContent = service.name;
-          li.dataset.id = service.id;
-          li.addEventListener('click', () => {
-            const isActive = li.classList.contains('active');
-            if (isActive) {
-              li.classList.remove('active');
-            } else {
-              li.classList.add('active');
-            }
-            calendar.refetchEvents();
-          });
-          servicesList.appendChild(li);
+          const option = document.createElement('option');
+          option.value = service.id;
+          option.textContent = service.name;
+          if (index === 0) {
+            option.selected = true;
+          }
+          serviceSelector.appendChild(option);
         });
+        calendar.refetchEvents();
       } else {
         console.warn('No services found for doctor');
-        servicesList.innerHTML = '<li class="list-group-item text-muted">Нет доступных услуг</li>';
+        // Добавляем disabled опцию, если нет услуг
+        const option = document.createElement('option');
+        option.disabled = true;
+        option.textContent = 'Нет доступных услуг';
+        serviceSelector.appendChild(option);
       }
+
+      serviceSelector.addEventListener('change', () => {
+        calendar.refetchEvents();
+      });
       
       // Populate services in the schedule modal dropdown
       const svcSel = document.getElementById('serviceId');
@@ -323,11 +328,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     };
   
-    document.getElementById('btnToggleAll').onclick = () => {
-      const btn = document.getElementById('btnToggleAll');
-      btn.classList.toggle('active');
-      calendar.refetchEvents();
-    };
   
     // 5. собрать события
     async function fetchEvents(fetchInfo, success, failure) {
@@ -349,23 +349,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.log(' schedules from server:', schs);
     
       // 2) Фильтр по услугам
-      const selectedServices = Array.from(
-        document.querySelectorAll('#servicesList .active')
-      ).map(li => +li.dataset.id);
-      const showAll = !selectedServices.length ||
-                      document.getElementById('btnToggleAll')
-                              .classList.contains('active');
-      console.log(' selectedServices:', selectedServices, 'showAll=', showAll);
-    
-      const filteredSchs = showAll
-        ? schs
-        : schs.filter(s => selectedServices.includes(s.service_id));
+      const serviceSelector = document.getElementById('serviceSelector');
+      const selectedServiceId = serviceSelector.value;
+      console.log(' selectedServiceId:', selectedServiceId);
+
+     // Фильтруем расписания по выбранной услуге
+      const filteredSchs = selectedServiceId 
+        ? schs.filter(s => s.service_id === parseInt(selectedServiceId))
+        : schs; // Если нет выбранной услуги, показываем все
+
       console.log(' filtered schedules:', filteredSchs);
-    
+
       if (filteredSchs.length === 0) {
-        console.warn(' no schedules to show');
-        success([]);
-        return;
+         console.warn(' no schedules to show');
+         success([]);
+         return;
       }
     
       // 3) Запрос встреч
