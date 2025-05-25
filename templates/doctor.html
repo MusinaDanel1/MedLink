@@ -113,6 +113,7 @@
 </div>
 
 <!-- Modal: Запись на приём -->
+<!-- Modal: Запись на приём -->
 <div class="modal fade" id="apptModal" tabindex="-1">
   <div class="modal-dialog">
     <form id="apptForm" class="modal-content">
@@ -123,20 +124,27 @@
                 data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <input type="hidden"
-               id="apptScheduleId"/>
+        <input type="hidden" id="apptScheduleId"/>
+        
+        <div class="mb-3">
+          <label class="form-label">Поиск пациента</label>
+          <input type="text" 
+                 id="patientSearch" 
+                 class="form-control" 
+                 placeholder="Введите имя или ИИН пациента..."/>
+          <div class="form-text">Начните вводить имя или ИИН для поиска</div>
+        </div>
+        
         <div class="mb-3">
           <label class="form-label">Пациент</label>
-          <div class="input-group">
-            <select id="patientId"
-                    class="form-select"></select>
-            <button type="button"
-                    class="btn btn-outline-secondary"
-                    id="addPatient">
-              +
-            </button>
-          </div>
+          <select id="patientSelect" 
+                  class="form-select" 
+                  required>
+            <option value="">Выберите пациента...</option>
+          </select>
+          <div class="form-text">Выберите пациента из списка</div>
         </div>
+        
         <div class="mb-3">
           <label class="form-label">Начало</label>
           <input type="datetime-local"
@@ -144,6 +152,7 @@
                  class="form-control"
                  required/>
         </div>
+        
         <div class="mb-3">
           <label class="form-label">Конец</label>
           <input type="datetime-local"
@@ -153,14 +162,20 @@
         </div>
       </div>
       <div class="modal-footer">
+        <button type="button" 
+                class="btn btn-outline-secondary"
+                data-bs-dismiss="modal">
+          Отмена
+        </button>
         <button type="submit"
                 class="btn btn-success">
-          Записать
+          Записать пациента
         </button>
       </div>
     </form>
   </div>
 </div>
+
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.0/locales/ru.js"></script>
 
 <script

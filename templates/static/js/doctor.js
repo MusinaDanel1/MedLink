@@ -18,6 +18,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
+  // Переменная для хранения всех пациентов
+  let allPatients = [];
+
   // 0. Load doctor details
   try {
     console.log(`Fetching doctor data from /api/doctors/${doctorId}`);
@@ -53,7 +56,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         doctor.services
       );
 
-      // Очищаем список услуг
       servicesList.innerHTML = "";
 
       doctor.services.forEach((service, index) => {
@@ -62,21 +64,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         li.textContent = service.name;
         li.dataset.id = service.id;
 
-        // Делаем первую услугу активной по умолчанию
         if (index === 0) {
           li.classList.add("active");
         }
 
         li.addEventListener("click", () => {
-          // Убираем активный класс со всех услуг
           document
             .querySelectorAll("#servicesList .service-filter")
             .forEach((item) => item.classList.remove("active"));
 
-          // Добавляем активный класс к выбранной услуге
           li.classList.add("active");
-
-          // Обновляем календарь
           calendar.refetchEvents();
         });
 
@@ -121,15 +118,70 @@ document.addEventListener("DOMContentLoaded", async () => {
   // 2. загрузить пациентов
   async function loadPatients() {
     try {
+      console.log("Loading patients from database...");
       const res = await fetch("/api/patients");
-      const pts = await res.json();
-      const sel = document.getElementById("patientId");
-      sel.innerHTML = "";
-      pts.forEach((p) => sel.add(new Option(p.full_name, p.id)));
+      
+      if (!res.ok) {
+        throw new Error(`Failed to fetch patients: ${res.status}`);
+      }
+      
+      const patients = await res.json();
+      console.log("Patients loaded:", patients);
+      
+      // Сохраняем всех пациентов в глобальную переменную
+      allPatients = patients;
+      
+      // Обновляем dropdown в модальном окне
+      updatePatientDropdown(patients);
+      
+      // Обновляем поиск пациентов
+      updatePatientSearch();
+      
     } catch (error) {
       console.error("Error loading patients:", error);
+      allPatients = [];
+      updatePatientDropdown([]);
     }
   }
+
+  // Функция для обновления dropdown пациентов
+  function updatePatientDropdown(patients) {
+    const sel = document.getElementById("patientSelect");
+    sel.innerHTML = '<option value="">Выберите пациента...</option>';
+    
+    patients.forEach((patient) => {
+      const option = new Option(
+        `${patient.full_name} (ИИН: ${patient.iin})`,
+        patient.id
+      );
+      sel.appendChild(option);
+    });
+  }
+
+  // Функция для обновления поиска пациентов
+  function updatePatientSearch() {
+    const searchInput = document.getElementById("patientSearch");
+    const dropdown = document.getElementById("patientSelect");
+    
+    searchInput.addEventListener("input", (e) => {
+      const searchTerm = e.target.value.toLowerCase();
+      
+      if (searchTerm.length === 0) {
+        updatePatientDropdown(allPatients);
+        return;
+      }
+      
+      const filteredPatients = allPatients.filter((patient) => {
+        return (
+          patient.full_name.toLowerCase().includes(searchTerm) ||
+          patient.iin.includes(searchTerm)
+        );
+      });
+      
+      updatePatientDropdown(filteredPatients);
+    });
+  }
+
   await loadPatients();
 
   // 3. инициализировать календарь
@@ -149,10 +201,44 @@ document.addEventListener("DOMContentLoaded", async () => {
     events: fetchEvents,
     selectable: true,
     select: (info) => {
-      document.getElementById("apptScheduleId").value = 0;
-      document.getElementById("apptStart").value = info.startStr.slice(0, 16);
-      document.getElementById("apptEnd").value = info.endStr.slice(0, 16);
-      new bootstrap.Modal(document.getElementById("apptModal")).show();
+      // Проверяем, что есть активная услуга
+      const activeService = document.querySelector(
+        "#servicesList .service-filter.active"
+      );
+      
+      if (!activeService) {
+        alert("Пожалуйста, выберите услугу для записи");
+        return;
+      }
+
+      // Находим соответствующий график для выбранного времени
+      const selectedServiceId = +activeService.dataset.id;
+      
+      // Здесь нужно найти подходящий график (schedule) для этой услуги и времени
+      findScheduleForTimeSlot(selectedServiceId, info.start, info.end)
+        .then((schedule) => {
+          if (!schedule) {
+            alert("Нет доступного графика для выбранного времени и услуги");
+            return;
+          }
+          
+          // Заполняем форму
+          document.getElementById("apptScheduleId").value = schedule.id;
+          document.getElementById("apptStart").value = info.startStr.slice(0, 16);
+          document.getElementById("apptEnd").value = info.endStr.slice(0, 16);
+          
+          // Очищаем поиск и выбор пациента
+          document.getElementById("patientSearch").value = "";
+          document.getElementById("patientSelect").value = "";
+          updatePatientDropdown(allPatients);
+          
+          // Показываем модальное окно
+          new bootstrap.Modal(document.getElementById("apptModal")).show();
+        })
+        .catch((error) => {
+          console.error("Error finding schedule:", error);
+          alert("Ошибка при поиске графика");
+        });
     },
     eventClick: async (info) => {
       const ext = info.event.extendedProps;
@@ -181,6 +267,33 @@ document.addEventListener("DOMContentLoaded", async () => {
     },
   });
   calendar.render();
+
+  // Функция для поиска подходящего графика
+  async function findScheduleForTimeSlot(serviceId, startTime, endTime) {
+    try {
+      const res = await fetch(`/api/schedules?doctorId=${doctorId}`);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch schedules: ${res.status}`);
+      }
+      
+      const schedules = await res.json();
+      
+      // Находим график для данной услуги, который покрывает выбранное время
+      const suitableSchedule = schedules.find((schedule) => {
+        if (schedule.service_id !== serviceId) return false;
+        
+        const scheduleStart = new Date(schedule.start_time);
+        const scheduleEnd = new Date(schedule.end_time);
+        
+        return startTime >= scheduleStart && endTime <= scheduleEnd;
+      });
+      
+      return suitableSchedule || null;
+    } catch (error) {
+      console.error("Error finding schedule:", error);
+      return null;
+    }
+  }
 
   // 4. формы
   document.getElementById("scheduleForm").onsubmit = async (e) => {
@@ -252,7 +365,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       document.getElementById("startTime").value = "";
       document.getElementById("endTime").value = "";
 
-      // Обновляем список услуг после создания нового графика
       location.reload();
     } catch (error) {
       console.error("Error creating schedule:", error);
@@ -264,12 +376,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     e.preventDefault();
 
     const scheduleId = document.getElementById("apptScheduleId").value;
-    const patientId = document.getElementById("patientId").value;
+    const patientId = document.getElementById("patientSelect").value;
     const startTime = document.getElementById("apptStart").value;
     const endTime = document.getElementById("apptEnd").value;
 
-    if (!patientId || !startTime || !endTime) {
-      alert("Пожалуйста, заполните все поля");
+    if (!patientId || !startTime || !endTime || !scheduleId) {
+      alert("Пожалуйста, заполните все поля и выберите пациента");
       return;
     }
 
@@ -286,43 +398,25 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to create appointment: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Failed to create appointment: ${response.status}`);
       }
 
       calendar.refetchEvents();
 
       bootstrap.Modal.getInstance(document.getElementById("apptModal")).hide();
 
+      // Очищаем форму
       document.getElementById("apptStart").value = "";
       document.getElementById("apptEnd").value = "";
+      document.getElementById("patientSearch").value = "";
+      document.getElementById("patientSelect").value = "";
+      
+      alert("Пациент успешно записан!");
+      
     } catch (error) {
       console.error("Error creating appointment:", error);
-      alert("Ошибка при создании записи. Пожалуйста, попробуйте еще раз.");
-    }
-  };
-
-  document.getElementById("addPatient").onclick = async () => {
-    const name = prompt("Имя пациента");
-    if (!name) return;
-
-    const iin = prompt("ИИН");
-    if (!iin) return;
-
-    try {
-      const response = await fetch("/api/patients", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ full_name: name, iin, telegram_id: 0 }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to create patient: ${response.status}`);
-      }
-
-      await loadPatients();
-    } catch (error) {
-      console.error("Error adding patient:", error);
-      alert("Ошибка при добавлении пациента. Пожалуйста, попробуйте еще раз.");
+      alert(`Ошибка при создании записи: ${error.message}`);
     }
   };
 
@@ -339,14 +433,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     try {
-      // 1) Запрос расписаний
-      console.log(` → GET /api/schedules?doctorId=${doctorId}`);
       const schRes = await fetch(`/api/schedules?doctorId=${doctorId}`);
       console.log(" schRes.ok =", schRes.ok, "status=", schRes.status);
       const schs = await schRes.json();
       console.log(" schedules from server:", schs);
 
-      // 2) Фильтр по выбранной услуге
       const activeServiceElement = document.querySelector(
         "#servicesList .service-filter.active"
       );
@@ -356,7 +447,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       console.log(" selectedServiceId:", selectedServiceId);
 
-      // Фильтруем расписания по выбранной услуге
       const filteredSchs = selectedServiceId
         ? schs.filter((s) => s.service_id === selectedServiceId)
         : [];
@@ -369,7 +459,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
       }
 
-      // 3) Запрос встреч
       const ids = filteredSchs.map((s) => s.id).join("&scheduleIDs[]=");
       console.log(" → GET /api/appointments?scheduleIDs[]=" + ids);
       const apptRes = await fetch(`/api/appointments?scheduleIDs[]=${ids}`);
@@ -377,7 +466,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       const appts = await apptRes.json();
       console.log(" appointments from server:", appts);
 
-      // 4) Формируем события
       const events = [];
 
       filteredSchs.forEach((s) => {
@@ -398,7 +486,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const evColor = a.status === "Принят" ? "gray" : "#e91e63";
         events.push({
           id: a.id,
-          title: a.status,
+          title: `${a.status} - ${a.patient_name || 'Пациент'}`,
           start: parseLocalDateTime(a.startTime),
           end: parseLocalDateTime(a.endTime),
           display: "auto",
@@ -409,6 +497,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           extendedProps: {
             canAccept: a.status === "Записан",
             videoUrl: a.video_url,
+            patientName: a.patient_name,
           },
         });
       });
