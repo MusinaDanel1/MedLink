@@ -58,11 +58,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (doctor.services && doctor.services.length > 0) {
         console.log(`Found ${doctor.services.length} services for doctor:`, doctor.services);
         
-        doctor.services.forEach(service => {
+        doctor.services.forEach((service, index) => {
           const option = document.createElement('option');
           option.value = service.id;
           option.textContent = service.name;
-          if (index === 0) {
+          if (index === 0) {  // Теперь index определен правильно
             option.selected = true;
           }
           serviceSelector.appendChild(option);
