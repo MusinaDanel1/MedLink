@@ -130,6 +130,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const calendar = new FullCalendar.Calendar(calendarEl, {
       initialView: 'timeGridWeek',
       timeZone: 'local',
+      locale: 'ru',
       events: fetchEvents,
       selectable: true,
       select: info => {
