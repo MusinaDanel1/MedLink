@@ -128,11 +128,38 @@ document.addEventListener("DOMContentLoaded", async () => {
       const patients = await res.json();
       console.log("Patients loaded:", patients);
       
+      if (!Array.isArray(patients)) {
+        console.error("Patients data is not an array:", patients);
+        allPatients = [];
+        updatePatientDropdown([]);
+        return;
+      }
+
+      const validPatients = patients.filter(patient => {
+        if (!patient) {
+          console.warn("Found null/undefined patient:", patient);
+          return false;
+        }
+        
+        if (!patient.id) {
+          console.warn("Patient without ID:", patient);
+          return false;
+        }
+        
+        return true;
+      }).map(patient => ({
+        id: patient.id,
+        full_name: patient.full_name || patient.name || 'Неизвестно',
+        iin: patient.iin || 'Не указан'
+      }));
+      
+      console.log("Processed patients:", validPatients);
+
       // Сохраняем всех пациентов в глобальную переменную
-      allPatients = patients;
+      allPatients = validPatients;
       
       // Обновляем dropdown в модальном окне
-      updatePatientDropdown(patients);
+      updatePatientDropdown(validPatients);
       
       // Обновляем поиск пациентов
       updatePatientSearch();
@@ -149,13 +176,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     const sel = document.getElementById("patientSelect");
     sel.innerHTML = '<option value="">Выберите пациента...</option>';
     
-    patients.forEach((patient) => {
-      const option = new Option(
-        `${patient.full_name} (ИИН: ${patient.iin})`,
-        patient.id
-      );
+    if (!Array.isArray(patients) || patients.length === 0) {
+      const option = new Option("Нет доступных пациентов", "");
+      option.disabled = true;
       sel.appendChild(option);
-    });
+      return;
+    }
+
+    patients.forEach((patient) => {
+    if (!patient || !patient.id) {
+      console.warn("Skipping invalid patient:", patient);
+      return;
+    }
+    
+    const fullName = patient.full_name || 'Неизвестно';
+    const iin = patient.iin || 'Не указан';
+    
+    const option = new Option(
+      `${fullName} (ИИН: ${iin})`,
+      patient.id
+    );
+    sel.appendChild(option);
+  });
   }
 
   // Функция для обновления поиска пациентов
@@ -172,6 +214,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
       
       const filteredPatients = allPatients.filter((patient) => {
+        if (!patient) return false;
+        const fullName = patient.full_name || patient.name || '';
+        const iin = patient.iin || '';
+
         return (
           patient.full_name.toLowerCase().includes(searchTerm) ||
           patient.iin.includes(searchTerm)
