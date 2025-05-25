@@ -141,16 +141,17 @@ document.addEventListener("DOMContentLoaded", async () => {
           return false;
         }
         
-        if (!patient.id) {
+        if (!patient.ID && !patient.id) {
           console.warn("Patient without ID:", patient);
           return false;
         }
         
         return true;
       }).map(patient => ({
-        id: patient.id,
-        full_name: patient.full_name || patient.name || 'Неизвестно',
-        iin: patient.iin || 'Не указан'
+        // Используем поля с заглавными буквами из вашего API
+        id: patient.ID || patient.id,
+        full_name: patient.FullName || patient.full_name || patient.name || 'Неизвестно',
+        iin: patient.IIN || patient.iin || 'Не указан'
       }));
       
       console.log("Processed patients:", validPatients);
@@ -201,33 +202,38 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // Функция для обновления поиска пациентов
-  function updatePatientSearch() {
-    const searchInput = document.getElementById("patientSearch");
-    
-    searchInput.addEventListener("input", (e) => {
-      const searchTerm = e.target.value.toLowerCase();
-      
-      if (searchTerm.length === 0) {
-        updatePatientDropdown(allPatients);
-        return;
-      }
-      
-      const filteredPatients = allPatients.filter((patient) => {
-        if (!patient) return false;
-        
-        // Используем те же переменные, что объявили
-        const fullName = patient.full_name || patient.name || '';
-        const iin = patient.iin || '';
+  // Функция для обновления поиска пациентов
+function updatePatientSearch() {
+  const searchInput = document.getElementById("patientSearch");
   
-        return (
-          fullName.toLowerCase().includes(searchTerm) ||
-          iin.includes(searchTerm)
-        );
-      });
+  // Убираем предыдущие обработчики, чтобы избежать дублирования
+  const newSearchInput = searchInput.cloneNode(true);
+  searchInput.parentNode.replaceChild(newSearchInput, searchInput);
+  
+  newSearchInput.addEventListener("input", (e) => {
+    const searchTerm = e.target.value.toLowerCase();
+    
+    if (searchTerm.length === 0) {
+      updatePatientDropdown(allPatients);
+      return;
+    }
+    
+    const filteredPatients = allPatients.filter((patient) => {
+      if (!patient) return false;
       
-      updatePatientDropdown(filteredPatients);
+      const fullName = patient.full_name || '';
+      const iin = patient.iin || '';
+
+      return (
+        fullName.toLowerCase().includes(searchTerm) ||
+        iin.includes(searchTerm)
+      );
     });
-  }
+    
+    updatePatientDropdown(filteredPatients);
+  });
+}
+
 
   await loadPatients();
 
