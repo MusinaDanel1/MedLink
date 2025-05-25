@@ -78,6 +78,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       serviceSelector.addEventListener('change', () => {
+        console.log('Service changed to:', serviceSelector.value);
         calendar.refetchEvents();
       });
       
@@ -350,21 +351,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     
       // 2) Фильтр по услугам
       const serviceSelector = document.getElementById('serviceSelector');
-      const selectedServiceId = serviceSelector.value;
-      console.log(' selectedServiceId:', selectedServiceId);
+  const selectedServiceId = serviceSelector.value;
+  console.log(' selectedServiceId:', selectedServiceId);
 
-     // Фильтруем расписания по выбранной услуге
-      const filteredSchs = selectedServiceId 
-        ? schs.filter(s => s.service_id === parseInt(selectedServiceId))
-        : schs; // Если нет выбранной услуги, показываем все
+  // Проверяем, что selectedServiceId не пустой и преобразуем его в число
+  const selectedServiceIdNum = parseInt(selectedServiceId);
+  console.log(' selectedServiceIdNum:', selectedServiceIdNum);
 
-      console.log(' filtered schedules:', filteredSchs);
+  // Фильтруем расписания по выбранной услуге
+  let filteredSchs = schs;
+  if (selectedServiceId && !isNaN(selectedServiceIdNum)) {
+    filteredSchs = schs.filter(s => s.service_id === selectedServiceIdNum);
+    console.log(' Filtered schedules by service_id:', selectedServiceIdNum);
+  }
 
-      if (filteredSchs.length === 0) {
-         console.warn(' no schedules to show');
-         success([]);
-         return;
-      }
+  console.log(' filtered schedules:', filteredSchs);
+
+  if (filteredSchs.length === 0) {
+    console.warn(' no schedules to show');
+    success([]);
+    return;
+  }
     
       // 3) Запрос встреч
       const ids = filteredSchs.map(s => s.id).join('&scheduleIDs[]=');
