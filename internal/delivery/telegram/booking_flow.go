@@ -12,6 +12,7 @@ import (
 func (h *BotHandler) handleCallback(cb *tgbotapi.CallbackQuery) {
 	chatID := cb.Message.Chat.ID
 	data := cb.Data
+	lang := h.getUserLanguage(chatID)
 
 	switch {
 	case data == "book_appointment":
@@ -26,6 +27,9 @@ func (h *BotHandler) handleCallback(cb *tgbotapi.CallbackQuery) {
 	case strings.HasPrefix(data, "serv_"):
 		h.handleServiceSelected(chatID, data)
 
+	case strings.HasPrefix(data, "date_"):
+		h.handleDateSelected(chatID, data)
+
 	case strings.HasPrefix(data, "timeslot_"):
 		h.handleTimeslotSelected(chatID, data)
 
@@ -37,13 +41,7 @@ func (h *BotHandler) handleCallback(cb *tgbotapi.CallbackQuery) {
 
 	case data == "ai_consultation":
 		h.state[chatID] = "ai_consultation_waiting"
-		msg := tgbotapi.NewMessage(chatID, "Пожалуйста, опишите вашу жалобу, и я проконсультирую вас.")
-		msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
-			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData("📅 Записаться к врачу", "book_appointment"),
-				tgbotapi.NewInlineKeyboardButtonData("💬 Консультация с ИИ", "ai_consultation"),
-			),
-		)
+		msg := tgbotapi.NewMessage(chatID, h.loc.Get(lang, "ai_consultation_prompt"))
 		h.bot.Send(msg)
 	}
 
@@ -51,9 +49,10 @@ func (h *BotHandler) handleCallback(cb *tgbotapi.CallbackQuery) {
 }
 
 func (h *BotHandler) handleBookingStart(chatID int64) {
+	lang := h.getUserLanguage(chatID)
 	specs, err := h.doctor.GetAllSpecializations()
 	if err != nil || len(specs) == 0 {
-		h.bot.Send(tgbotapi.NewMessage(chatID, "Нет доступных специализаций."))
+		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "no_specializations")))
 		return
 	}
 	if h.temp[chatID] == nil {
@@ -71,17 +70,18 @@ func (h *BotHandler) handleBookingStart(chatID int64) {
 		)
 	}
 
-	msg := tgbotapi.NewMessage(chatID, "Выберите специализацию:")
+	msg := tgbotapi.NewMessage(chatID, h.loc.Get(lang, "choose_specialization"))
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
 	h.state[chatID] = "booking_specialization"
 	h.bot.Send(msg)
 }
 
 func (h *BotHandler) handleSpecSelected(chatID int64, data string) {
+	lang := h.getUserLanguage(chatID)
 	parts := strings.Split(data, "_")
 	specID, err := strconv.Atoi(parts[1])
 	if err != nil {
-		h.bot.Send(tgbotapi.NewMessage(chatID, "Не удалось распознать специализацию."))
+		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "invalid_specialization")))
 		return
 	}
 
@@ -96,8 +96,7 @@ func (h *BotHandler) handleSpecSelected(chatID int64, data string) {
 
 	docs, err := h.doctor.GetDoctorsBySpecialization(specID)
 	if err != nil || len(docs) == 0 {
-		h.bot.Send(tgbotapi.NewMessage(chatID,
-			"Нет врачей для выбранной специализации."))
+		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "no_doctors")))
 		return
 	}
 
@@ -112,17 +111,18 @@ func (h *BotHandler) handleSpecSelected(chatID int64, data string) {
 		)
 	}
 
-	msg := tgbotapi.NewMessage(chatID, "Выберите врача:")
+	msg := tgbotapi.NewMessage(chatID, h.loc.Get(lang, "choose_doctor"))
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
 	h.state[chatID] = "booking_doctor"
 	h.bot.Send(msg)
 }
 
 func (h *BotHandler) handleDoctorSelected(chatID int64, data string) {
+	lang := h.getUserLanguage(chatID)
 	parts := strings.Split(data, "_")
 	docID, err := strconv.Atoi(parts[1])
 	if err != nil {
-		h.bot.Send(tgbotapi.NewMessage(chatID, "Не удалось распознать врача."))
+		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "invalid_doctor")))
 		return
 	}
 
@@ -141,8 +141,7 @@ func (h *BotHandler) handleDoctorSelected(chatID int64, data string) {
 
 	services, err := h.doctor.GetServicesByDoctor(docID)
 	if err != nil || len(services) == 0 {
-		h.bot.Send(tgbotapi.NewMessage(chatID,
-			"У выбранного врача нет доступных услуг."))
+		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "no_services")))
 		return
 	}
 
@@ -157,17 +156,18 @@ func (h *BotHandler) handleDoctorSelected(chatID int64, data string) {
 		)
 	}
 
-	msg := tgbotapi.NewMessage(chatID, "Выберите услугу:")
+	msg := tgbotapi.NewMessage(chatID, h.loc.Get(lang, "choose_service"))
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
 	h.state[chatID] = "booking_service"
 	h.bot.Send(msg)
 }
 
 func (h *BotHandler) handleServiceSelected(chatID int64, data string) {
+	lang := h.getUserLanguage(chatID)
 	parts := strings.Split(data, "_")
 	servID, err := strconv.Atoi(parts[1])
 	if err != nil {
-		h.bot.Send(tgbotapi.NewMessage(chatID, "Не удалось распознать услугу."))
+		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "invalid_service")))
 		return
 	}
 
@@ -184,33 +184,118 @@ func (h *BotHandler) handleServiceSelected(chatID int64, data string) {
 		}
 	}
 
+	h.showAvailableDates(chatID)
+}
+
+func (h *BotHandler) showAvailableDates(chatID int64) {
+	lang := h.getUserLanguage(chatID)
 	docID := mustAtoi(h.temp[chatID]["doctor_id"])
+
 	slots, err := h.doctor.GetAvailableTimeSlots(docID)
 	if err != nil || len(slots) == 0 {
-		h.bot.Send(tgbotapi.NewMessage(chatID,
-			"Нет доступных тайм-слотов."))
+		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "no_timeslots")))
 		return
 	}
 
+	// Группируем слоты по датам
+	dateMap := make(map[string][]interface{})
+	for _, slot := range slots {
+		dateStr := slot.StartTime.Format("2006-01-02")
+		dateMap[dateStr] = append(dateMap[dateStr], slot)
+	}
+
+	if len(dateMap) == 0 {
+		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "no_available_dates")))
+		return
+	}
+
+	// Создаем кнопки для дат
 	var rows [][]tgbotapi.InlineKeyboardButton
-	for _, t := range slots {
+	for dateStr := range dateMap {
+		date, _ := time.Parse("2006-01-02", dateStr)
+		displayDate := date.Format("02.01.2006")
+
 		rows = append(rows,
 			tgbotapi.NewInlineKeyboardRow(
 				tgbotapi.NewInlineKeyboardButtonData(
-					t.StartTime.Format("02.01.2006 15:04"),
-					"timeslot_"+strconv.Itoa(t.ID),
+					displayDate, "date_"+dateStr,
 				),
 			),
 		)
 	}
 
-	msg := tgbotapi.NewMessage(chatID, "Выберите время:")
+	msg := tgbotapi.NewMessage(chatID, h.loc.Get(lang, "choose_date"))
+	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
+	h.state[chatID] = "booking_date"
+	h.bot.Send(msg)
+}
+
+// Новая функция для обработки выбора даты
+func (h *BotHandler) handleDateSelected(chatID int64, data string) {
+	lang := h.getUserLanguage(chatID)
+	parts := strings.Split(data, "_")
+	if len(parts) != 2 {
+		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "invalid_command")))
+		return
+	}
+
+	selectedDate := parts[1]
+	h.temp[chatID]["selected_date"] = selectedDate
+
+	// Получаем слоты для выбранной даты
+	docID := mustAtoi(h.temp[chatID]["doctor_id"])
+	slots, err := h.doctor.GetAvailableTimeSlots(docID)
+	if err != nil {
+		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "no_timeslots")))
+		return
+	}
+
+	// Фильтруем слоты по выбранной дате
+	var daySlots []interface{}
+	for _, slot := range slots {
+		slotDate := slot.StartTime.Format("2006-01-02")
+		if slotDate == selectedDate {
+			daySlots = append(daySlots, slot)
+		}
+	}
+
+	if len(daySlots) == 0 {
+		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "no_slots_for_date")))
+		return
+	}
+
+	// Создаем кнопки для времени
+	var rows [][]tgbotapi.InlineKeyboardButton
+	for _, slotInterface := range daySlots {
+		slot := slotInterface.(struct {
+			ID         int
+			ScheduleID int
+			StartTime  time.Time
+			EndTime    time.Time
+		})
+
+		timeStr := slot.StartTime.Format("15:04")
+		rows = append(rows,
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData(
+					timeStr, "timeslot_"+strconv.Itoa(slot.ID),
+				),
+			),
+		)
+	}
+
+	// Форматируем дату для отображения
+	date, _ := time.Parse("2006-01-02", selectedDate)
+	displayDate := date.Format("02.01.2006")
+
+	msg := tgbotapi.NewMessage(chatID, h.loc.Get(lang, "choose_time_for_date")+" "+displayDate+":")
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
 	h.state[chatID] = "booking_timeslot"
 	h.bot.Send(msg)
 }
 
 func (h *BotHandler) handleTimeslotSelected(chatID int64, data string) {
+	lang := h.getUserLanguage(chatID)
 	parts := strings.Split(data, "_")
 	tsID := mustAtoi(parts[1])
 
@@ -227,14 +312,14 @@ func (h *BotHandler) handleTimeslotSelected(chatID int64, data string) {
 		}
 	}
 
-	text := "Подтвердите прием:\n" +
-		"Специализация: " + h.temp[chatID]["spec_name"] + "\n" +
-		"Врач: " + h.temp[chatID]["doctor_name"] + "\n" +
-		"Услуга: " + h.temp[chatID]["service_name"] + "\n" +
-		"Время: " + h.temp[chatID]["timeslot_time"]
+	text := h.loc.Get(lang, "confirm_appointment") + "\n" +
+		h.loc.Get(lang, "specialization") + " " + h.temp[chatID]["spec_name"] + "\n" +
+		h.loc.Get(lang, "doctor") + " " + h.temp[chatID]["doctor_name"] + "\n" +
+		h.loc.Get(lang, "service") + " " + h.temp[chatID]["service_name"] + "\n" +
+		h.loc.Get(lang, "time") + " " + h.temp[chatID]["timeslot_time"]
 
-	yes := tgbotapi.NewInlineKeyboardButtonData("✅ Да", "confirm_yes")
-	no := tgbotapi.NewInlineKeyboardButtonData("❌ Нет", "confirm_no")
+	yes := tgbotapi.NewInlineKeyboardButtonData(h.loc.Get(lang, "yes"), "confirm_yes")
+	no := tgbotapi.NewInlineKeyboardButtonData(h.loc.Get(lang, "no"), "confirm_no")
 	msg := tgbotapi.NewMessage(chatID, text)
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(yes, no),
@@ -245,26 +330,29 @@ func (h *BotHandler) handleTimeslotSelected(chatID int64, data string) {
 }
 
 func (h *BotHandler) handleBookingConfirm(chatID int64, ok bool) {
+	lang := h.getUserLanguage(chatID)
+
 	if !ok {
-		h.bot.Send(tgbotapi.NewMessage(chatID, "Запись отменена."))
+		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "appointment_cancelled")))
 		delete(h.state, chatID)
 		delete(h.temp, chatID)
 		h.sendMainMenu(chatID)
 		return
 	}
+
 	patientID, err := h.patient.GetIDByChatID(chatID)
 	if err != nil {
-		h.bot.Send(tgbotapi.NewMessage(chatID,
-			"Не удалось получить данные пациента."))
+		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "patient_data_error")))
 		return
 	}
+
 	docID := mustAtoi(h.temp[chatID]["doctor_id"])
 	tsID := mustAtoi(h.temp[chatID]["timeslot_id"])
 
 	// First get the timeslot to access its schedule ID and times
 	slots, err := h.doctor.GetAvailableTimeSlots(docID)
 	if err != nil {
-		h.bot.Send(tgbotapi.NewMessage(chatID, "Ошибка при получении данных слота."))
+		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "slot_data_error")))
 		return
 	}
 
@@ -286,20 +374,20 @@ func (h *BotHandler) handleBookingConfirm(chatID int64, ok bool) {
 
 	if err != nil {
 		if err == usecase.ErrSlotBooked {
-			h.bot.Send(tgbotapi.NewMessage(chatID, "Извините, этот слот уже занят."))
+			h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "slot_taken")))
 		} else {
-			h.bot.Send(tgbotapi.NewMessage(chatID, "Ошибка при записи: "+err.Error()))
+			h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "booking_error")+" "+err.Error()))
 		}
 		return
 	}
 
 	// Подтверждаем пользователю
-	h.bot.Send(tgbotapi.NewMessage(chatID,
-		"Вы успешно записаны!\n"+
-			"Врач: "+h.temp[chatID]["doctor_name"]+"\n"+
-			"Услуга: "+h.temp[chatID]["service_name"]+"\n"+
-			"Время: "+h.temp[chatID]["timeslot_time"],
-	))
+	successText := h.loc.Get(lang, "appointment_success") + "\n" +
+		h.loc.Get(lang, "doctor") + " " + h.temp[chatID]["doctor_name"] + "\n" +
+		h.loc.Get(lang, "service") + " " + h.temp[chatID]["service_name"] + "\n" +
+		h.loc.Get(lang, "time") + " " + h.temp[chatID]["timeslot_time"]
+
+	h.bot.Send(tgbotapi.NewMessage(chatID, successText))
 
 	// Генерим ссылку на видео-сессию и отправляем
 	h.sendVideoLink(chatID, apptID)

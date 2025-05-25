@@ -16,6 +16,8 @@ type BotHandler struct {
 	state       map[int64]string
 	temp        map[int64]map[string]string
 	openai      usecase.Service
+	userLang    map[int64]Language
+	loc         *Localization
 }
 
 func NewBotHandler(bot *tgbotapi.BotAPI, patient *usecase.PatientService, doctor *usecase.DoctorService, appointment *usecase.AppointmentService, openai usecase.Service) *BotHandler {
@@ -27,6 +29,8 @@ func NewBotHandler(bot *tgbotapi.BotAPI, patient *usecase.PatientService, doctor
 		state:       make(map[int64]string),
 		temp:        make(map[int64]map[string]string),
 		openai:      openai,
+		userLang:    make(map[int64]Language),
+		loc:         NewLocalization(),
 	}
 }
 
@@ -54,20 +58,24 @@ func (h *BotHandler) HandleMessage(msg *tgbotapi.Message) {
 		return
 	}
 
+	lang := h.getUserLanguage(chatID)
+	if h.state[chatID] == "choosing_language" {
+		h.handleLanguageSelection(chatID, text)
+		return
+	}
+
 	// Если ожидание текста от пользователя для ChatGPT
 	if h.state[chatID] == "ai_consultation_waiting" {
 		reply, err := h.openai.AskChatGPT(text)
 		if err != nil {
-			h.bot.Send(tgbotapi.NewMessage(chatID, "Ошибка при обращении к ИИ: "+err.Error()))
+			h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "ai_error")+" "+err.Error()))
 			return
 		}
 
-		// Отправляем ответ от ИИ с поддержкой Markdown
 		aiMsg := tgbotapi.NewMessage(chatID, reply)
 		aiMsg.ParseMode = "Markdown"
 		h.bot.Send(aiMsg)
 
-		// Return to main menu after AI consultation
 		delete(h.state, chatID)
 		h.sendMainMenu(chatID)
 		return
@@ -75,22 +83,73 @@ func (h *BotHandler) HandleMessage(msg *tgbotapi.Message) {
 
 	// Handle regular keyboard buttons
 	switch text {
-	case "📅 Записаться к врачу":
-		// Start the booking flow
+	case h.loc.Get(lang, "book_appointment"):
 		h.handleBookingStart(chatID)
-	case "💬 Консультация с ИИ":
+	case h.loc.Get(lang, "ai_consultation"):
 		h.state[chatID] = "ai_consultation_waiting"
-		msg := tgbotapi.NewMessage(chatID, "Пожалуйста, опишите вашу жалобу, и я проконсультирую вас.")
+		msg := tgbotapi.NewMessage(chatID, h.loc.Get(lang, "ai_consultation_prompt"))
 		h.bot.Send(msg)
 	default:
-		// If not a recognized command, show the main menu
 		if h.state[chatID] == "" {
 			h.sendMainMenu(chatID)
 		} else {
-			// Process as input for the current state
 			h.handleUserInput(chatID, text)
 		}
 	}
+}
+
+func (h *BotHandler) getUserLanguage(chatID int64) Language {
+	if lang, ok := h.userLang[chatID]; ok {
+		return lang
+	}
+	return LangRussian // Default to Russian
+}
+
+func (h *BotHandler) handleLanguageSelection(chatID int64, text string) {
+	switch text {
+	case h.loc.Get(LangRussian, "russian"):
+		h.userLang[chatID] = LangRussian
+		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(LangRussian, "language_selected")))
+	case h.loc.Get(LangKazakh, "kazakh"):
+		h.userLang[chatID] = LangKazakh
+		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(LangKazakh, "language_selected")))
+	default:
+		// Invalid selection, ask again
+		h.sendLanguageSelection(chatID)
+		return
+	}
+
+	delete(h.state, chatID)
+
+	// Check if user is registered
+	isRegistered := h.patient.Exists(chatID)
+	if isRegistered {
+		h.sendMainMenu(chatID)
+	} else {
+		h.startRegistration(chatID)
+	}
+}
+
+func (h *BotHandler) sendLanguageSelection(chatID int64) {
+	msg := tgbotapi.NewMessage(chatID, h.loc.Get(LangRussian, "choose_language"))
+
+	keyboard := tgbotapi.NewReplyKeyboard(
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton(h.loc.Get(LangRussian, "russian")),
+			tgbotapi.NewKeyboardButton(h.loc.Get(LangKazakh, "kazakh")),
+		),
+	)
+	keyboard.OneTimeKeyboard = true
+	msg.ReplyMarkup = keyboard
+
+	h.bot.Send(msg)
+}
+
+func (h *BotHandler) startRegistration(chatID int64) {
+	lang := h.getUserLanguage(chatID)
+	h.state[chatID] = "awaiting_name"
+	h.temp[chatID] = make(map[string]string)
+	h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "registration_required")))
 }
 
 func (h *BotHandler) SendReport(chatID int64, pdfBytes []byte, apptID int) error {
@@ -106,20 +165,16 @@ func (h *BotHandler) SendReport(chatID int64, pdfBytes []byte, apptID int) error
 
 // internal/delivery/telegram/bot_handler.go
 func (h *BotHandler) sendVideoLink(chatID int64, apptID int) {
-	// Получаем домен из переменной окружения
+	lang := h.getUserLanguage(chatID)
 	baseURL := os.Getenv("BASE_URL")
 	if baseURL == "" {
-		// Fallback на ваш Render домен
 		baseURL = "https://telemed-76fw.onrender.com"
 	}
 
-	// Формируем ссылку для пациента
 	videoURL := fmt.Sprintf("%s/webrtc/room.html?appointment_id=%d&role=patient",
 		baseURL, apptID)
 
-	// Отправляем сообщение
 	msg := tgbotapi.NewMessage(chatID,
-		"Через 5 минут видеозвонок по ссылке:\n"+videoURL)
+		h.loc.Get(lang, "video_link_message")+"\n"+videoURL)
 	h.bot.Send(msg)
-
 }

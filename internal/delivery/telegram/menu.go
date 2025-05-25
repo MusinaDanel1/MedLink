@@ -5,16 +5,16 @@ import (
 )
 
 func (h *BotHandler) sendMainMenu(chatID int64) {
-	msg := tgbotapi.NewMessage(chatID, "Что вы хотите сделать?")
+	lang := h.getUserLanguage(chatID)
+	msg := tgbotapi.NewMessage(chatID, h.loc.Get(lang, "main_menu_question"))
 
-	// Create keyboard with two buttons
 	keyboard := tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton("📅 Записаться к врачу"),
-			tgbotapi.NewKeyboardButton("💬 Консультация с ИИ"),
+			tgbotapi.NewKeyboardButton(h.loc.Get(lang, "book_appointment")),
+			tgbotapi.NewKeyboardButton(h.loc.Get(lang, "ai_consultation")),
 		),
 	)
-	keyboard.OneTimeKeyboard = false // Keep keyboard visible
+	keyboard.OneTimeKeyboard = false
 	msg.ReplyMarkup = keyboard
 
 	h.bot.Send(msg)
