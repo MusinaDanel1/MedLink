@@ -341,6 +341,44 @@ function updatePatientInfoUI() {
       track.enabled ? 1 : 0.5;
   };
 
+  document.getElementById('endCall').onclick = async () => {
+    const confirmEnd = confirm('Вы уверены, что хотите завершить звонок?');
+    if (!confirmEnd) return;
+    
+    try {
+      console.log('🔴 Завершение звонка...');
+      
+      // 1. Закрываем WebRTC соединения
+      pc.close();
+      ws.close();
+      
+      // 2. Останавливаем локальный поток
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+      }
+      
+      // 3. Отправляем запрос на завершение приема
+      const response = await fetch(`${apiBaseUrl}/api/appointments/${apptID}/end-call`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Звонок завершен:', data);
+        alert('✅ Звонок успешно завершен');
+        closeAndGoBack();
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Server error:', errorText);
+        alert('❌ Ошибка при завершении звонка: ' + errorText);
+      }
+    } catch (error) {
+      console.error('❌ Error ending call:', error);
+      alert('❌ Ошибка при завершении звонка');
+    }
+  };
+  
   // Функция для закрытия страницы
   window.closeAndGoBack = function() {
     try {
