@@ -131,6 +131,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       initialView: 'timeGridWeek',
       timeZone: 'local',
       locale: 'ru',
+      buttonText: {
+        today: 'Сегодня'
+      },
+      allDayText: 'Весь день',
+      slotLabelFormat: {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false // Используем 24-часовой формат
+      },
       events: fetchEvents,
       selectable: true,
       select: info => {
