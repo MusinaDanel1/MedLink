@@ -327,6 +327,8 @@ func main() {
 	r.PUT("/api/appointments/:id/details", apptHandler.CompleteAppointment)
 	r.POST("/api/appointments/:id/complete", apptHandler.CompleteAppointment)
 	r.PUT("/api/appointments/:id/accept", apptHandler.AcceptAppointment)
+	r.GET("/api/appointments/:id/status", apptHandler.GetAppointmentStatus) // Добавлен /api/appointments + правильный хендлер
+	r.PUT("/api/appointments/:id/end-call", apptHandler.EndCall)
 	r.POST("/api/appointments", apptHandler.BookAppointment)
 	r.GET("/api/appointments", apptHandler.ListBySchedules)
 	r.GET("/api/diagnoses", doctorHandler.GetAllDiagnoses)
@@ -337,8 +339,6 @@ func main() {
 	r.GET("/api/doctors", doctorHandler.GetAllDoctors)
 	r.GET("/api/schedules", schedH.GetSchedules)
 	r.POST("/api/schedules", schedH.CreateSchedule)
-	r.GET("/:id/status", apptHandler.GetAppointmentDetails)
-	r.PUT("/:id/end-call", apptHandler.EndCall)
 
 	// Start Gin server on port 8080
 	log.Printf("Server starting at http://localhost:8080")
