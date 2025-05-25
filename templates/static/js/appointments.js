@@ -143,7 +143,7 @@ function updatePatientInfoUI() {
     const statusResponse = await fetch(`${apiBaseUrl}/api/appointments/${apptID}/status`);
     const statusData = await statusResponse.json();
     
-    if (statusData.status === 'completed') {
+    if (statusData.status === 'Завершен') {
       // Показать сообщение о завершенном приеме
       document.body.innerHTML = `
         <div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; font-family: Arial, sans-serif;">
@@ -378,7 +378,7 @@ function updatePatientInfoUI() {
       alert('❌ Ошибка при завершении звонка');
     }
   };
-  
+
   // Функция для закрытия страницы
   window.closeAndGoBack = function() {
     try {

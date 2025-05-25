@@ -88,7 +88,7 @@ func (s *AppointmentService) GetAppointmentDetails(id int) (domain.AppointmentDe
 }
 
 func (s *AppointmentService) EndCall(appointmentID int) error {
-	return s.repo.UpdateStatus(appointmentID, "completed")
+	return s.repo.UpdateStatus(appointmentID, "Завершен")
 }
 
 func (s *AppointmentService) GetAppointmentStatus(appointmentID int) (string, error) {

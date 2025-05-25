@@ -3,7 +3,7 @@ CREATE DATABASE telemed;
 
 -- Соединение с базой данных telemed_db (это не работает в скрипте, нужно подключиться через psql)
 -- \c telemed_db
-CREATE TYPE appointment_status AS  ENUM ('Записан', 'Принят');
+CREATE TYPE appointment_status AS  ENUM ('Записан', 'Принят', 'Завершен');
 -- Создание таблицы users
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,

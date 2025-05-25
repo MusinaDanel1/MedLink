@@ -1,7 +1,6 @@
 package http
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -9,10 +8,10 @@ import (
 	"strconv"
 	"telemed/internal/delivery/telegram"
 	"telemed/internal/domain"
+	"telemed/internal/pdf"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jung-kurt/gofpdf"
 
 	"telemed/internal/usecase"
 )
@@ -118,77 +117,18 @@ func (h *AppointmentHandler) CompleteAppointment(c *gin.Context) {
 	}
 	specName, _ := h.doctorSvc.GetSpecializationName(doc.SpecializationID)
 	// 6) Сгенерить PDF через gofpdf
-	pdf := gofpdf.New("P", "mm", "A4", "")
-	pdf.AddUTF8Font("DejaVu", "", "static/fonts/DejaVuSans.ttf")
-	pdf.AddUTF8Font("DejaVu", "B", "static/fonts/DejaVuSans-Bold.ttf")
-	pdf.SetFont("DejaVu", "", 16)
-	pdf.AddPage()
-	pdf.Cell(40, 10, "Hello, PDF!")
-
-	// Заголовок
-	pdf.Cell(0, 10, "Отчёт о приёме")
-	pdf.Ln(12)
-	pdf.SetFont("DejaVu", "", 12)
-	// Инфо
-	pdf.CellFormat(40, 6, "Пациент:", "", 0, "", false, 0, "")
-	pdf.CellFormat(0, 6,
-		fmt.Sprintf("%s (ИИН: %s)",
-			patientMap["full_name"].(string),
-			patientMap["iin"].(string)),
-		"", 1, "", false, 0, "",
+	pdfGenerator := pdf.NewGenerator("static/fonts")
+	pdfBytes, err := pdfGenerator.GenerateAppointmentReport(
+		details,
+		patientMap,
+		doc.FullName,
+		specName,
 	)
-	pdf.CellFormat(40, 6, "Врач:", "", 0, "", false, 0, "")
-	pdf.CellFormat(0, 6,
-		fmt.Sprintf("%s (%s)", doc.FullName, specName),
-		"", 1, "", false, 0, "",
-	)
-	pdf.CellFormat(40, 6, "Дата:", "", 0, "", false, 0, "")
-	pdf.CellFormat(0, 6, time.Now().Format("2006-01-02 15:04"), "", 1, "", false, 0, "")
-
-	// Секции
-	pdf.Ln(4)
-	pdf.SetFont("DejaVu", "B", 12)
-	pdf.Cell(0, 6, "Жалобы")
-	pdf.Ln(6)
-	pdf.SetFont("DejaVu", "", 12)
-	pdf.MultiCell(0, 6, details.Complaints, "", "", false)
-
-	pdf.Ln(2)
-	pdf.SetFont("DejaVu", "B", 12)
-	pdf.Cell(0, 6, "Диагноз")
-	pdf.Ln(6)
-	pdf.SetFont("DejaVu", "", 12)
-	pdf.MultiCell(0, 6, details.Diagnosis, "", "", false)
-
-	pdf.Ln(2)
-	pdf.SetFont("DejaVu", "B", 12)
-	pdf.Cell(0, 6, "Назначения")
-	pdf.Ln(6)
-	pdf.SetFont("DejaVu", "", 12)
-	pdf.MultiCell(0, 6, details.Assignment, "", "", false)
-
-	pdf.Ln(2)
-	pdf.SetFont("DejaVu", "B", 12)
-	pdf.Cell(0, 6, "Рецепты")
-	pdf.Ln(6)
-	pdf.SetFont("DejaVu", "", 12)
-	for _, p := range details.Prescriptions {
-		pdf.MultiCell(0, 6,
-			fmt.Sprintf("• %s, %s, %s", p.Medication, p.Dosage, p.Schedule),
-			"", "", false,
-		)
+	if err != nil {
+		log.Println("PDF generation error:", err)
+		c.JSON(500, gin.H{"error": "pdf generation failed: " + err.Error()})
+		return
 	}
-
-	buf := &bytes.Buffer{}
-	if err := pdf.Output(buf); err != nil {
-		if err := pdf.Output(buf); err != nil {
-			log.Println("PDF output error:", err)
-			c.JSON(500, gin.H{"error": "pdf output failed: " + err.Error()})
-			return
-		}
-	}
-	pdfBytes := buf.Bytes()
-
 	// 7) Отправить PDF в Telegram
 	if h.botHandler != nil {
 		// Берём raw-значение из patientMap

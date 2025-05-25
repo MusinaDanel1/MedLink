@@ -3,74 +3,97 @@ package pdf
 import (
 	"bytes"
 	"fmt"
-	"telemed/internal/domain"
+	"time"
 
 	"github.com/jung-kurt/gofpdf"
+
+	"telemed/internal/domain"
 )
 
-func GeneratePDF(
-	patientName, patientIIN string,
-	doctorName, doctorSpec string,
-	date string,
+// Generator handles PDF document creation
+type Generator struct {
+	fontPath string
+}
+
+// NewGenerator creates a new PDF generator
+func NewGenerator(fontPath string) *Generator {
+	return &Generator{
+		fontPath: fontPath,
+	}
+}
+
+// GenerateAppointmentReport creates a PDF report for a completed appointment
+func (g *Generator) GenerateAppointmentReport(
 	details domain.AppointmentDetails,
-	fontPath string, // путь к DejaVuSans.ttf
+	patientInfo map[string]interface{},
+	doctorName string,
+	specializationName string,
 ) ([]byte, error) {
 	pdf := gofpdf.New("P", "mm", "A4", "")
-	// Регистрируем UTF-8 шрифт
-	pdf.AddUTF8Font("DejaVu", "", fontPath)
+	pdf.AddUTF8Font("DejaVu", "", g.fontPath+"/DejaVuSans.ttf")
+	pdf.AddUTF8Font("DejaVu", "B", g.fontPath+"/DejaVuSans-Bold.ttf")
 	pdf.SetFont("DejaVu", "", 16)
 	pdf.AddPage()
 
 	// Заголовок
-	pdf.Cell(0, 12, "Отчет о приеме")
-	pdf.Ln(14)
-
+	pdf.Cell(0, 10, "Отчёт о приёме")
+	pdf.Ln(12)
 	pdf.SetFont("DejaVu", "", 12)
+
 	// Инфо
-	pdf.CellFormat(40, 8, "Пациент:", "", 0, "", false, 0, "")
-	pdf.CellFormat(0, 8, fmt.Sprintf("%s (ИИН: %s)", patientName, patientIIN),
-		"", 1, "", false, 0, "")
+	pdf.CellFormat(40, 6, "Пациент:", "", 0, "", false, 0, "")
+	pdf.CellFormat(0, 6,
+		fmt.Sprintf("%s (ИИН: %s)",
+			patientInfo["full_name"].(string),
+			patientInfo["iin"].(string)),
+		"", 1, "", false, 0, "",
+	)
+	pdf.CellFormat(40, 6, "Врач:", "", 0, "", false, 0, "")
+	pdf.CellFormat(0, 6,
+		fmt.Sprintf("%s (%s)", doctorName, specializationName),
+		"", 1, "", false, 0, "",
+	)
+	pdf.CellFormat(40, 6, "Дата:", "", 0, "", false, 0, "")
+	pdf.CellFormat(0, 6, time.Now().Format("2006-01-02 15:04"), "", 1, "", false, 0, "")
 
-	pdf.CellFormat(40, 8, "Врач:", "", 0, "", false, 0, "")
-	pdf.CellFormat(0, 8, fmt.Sprintf("%s (%s)", doctorName, doctorSpec),
-		"", 1, "", false, 0, "")
-
-	pdf.CellFormat(40, 8, "Дата:", "", 0, "", false, 0, "")
-	pdf.CellFormat(0, 8, date, "", 1, "", false, 0, "")
-
-	// Разделы
-	pdf.Ln(6)
+	// Секции
+	pdf.Ln(4)
 	pdf.SetFont("DejaVu", "B", 12)
-	pdf.Cell(0, 8, "Жалобы")
-	pdf.Ln(8)
+	pdf.Cell(0, 6, "Жалобы")
+	pdf.Ln(6)
 	pdf.SetFont("DejaVu", "", 12)
 	pdf.MultiCell(0, 6, details.Complaints, "", "", false)
 
-	pdf.Ln(4)
+	pdf.Ln(2)
 	pdf.SetFont("DejaVu", "B", 12)
-	pdf.Cell(0, 8, "Диагноз")
-	pdf.Ln(8)
+	pdf.Cell(0, 6, "Диагноз")
+	pdf.Ln(6)
 	pdf.SetFont("DejaVu", "", 12)
 	pdf.MultiCell(0, 6, details.Diagnosis, "", "", false)
 
-	pdf.Ln(4)
+	pdf.Ln(2)
 	pdf.SetFont("DejaVu", "B", 12)
-	pdf.Cell(0, 8, "Назначения")
-	pdf.Ln(8)
+	pdf.Cell(0, 6, "Назначения")
+	pdf.Ln(6)
 	pdf.SetFont("DejaVu", "", 12)
 	pdf.MultiCell(0, 6, details.Assignment, "", "", false)
 
-	pdf.Ln(4)
+	pdf.Ln(2)
 	pdf.SetFont("DejaVu", "B", 12)
-	pdf.Cell(0, 8, "Рецепты")
-	pdf.Ln(8)
+	pdf.Cell(0, 6, "Рецепты")
+	pdf.Ln(6)
 	pdf.SetFont("DejaVu", "", 12)
 	for _, p := range details.Prescriptions {
-		line := fmt.Sprintf("• %s, %s, %s", p.Medication, p.Dosage, p.Schedule)
-		pdf.MultiCell(0, 6, line, "", "", false)
+		pdf.MultiCell(0, 6,
+			fmt.Sprintf("• %s, %s, %s", p.Medication, p.Dosage, p.Schedule),
+			"", "", false,
+		)
 	}
 
-	var buf bytes.Buffer
-	err := pdf.Output(&buf)
-	return buf.Bytes(), err
+	buf := &bytes.Buffer{}
+	if err := pdf.Output(buf); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
 }
