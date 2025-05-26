@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -331,18 +332,76 @@ func (h *BotHandler) handleDateSelected(chatID int64, data string) {
 func (h *BotHandler) handleTimeslotSelected(chatID int64, data string) {
 	lang := h.getUserLanguage(chatID)
 	parts := strings.Split(data, "_")
-	tsID := mustAtoi(parts[1])
+
+	// Проверяем, что у нас достаточно частей в data
+	if len(parts) < 2 {
+		h.sendErrorMessage(chatID, "Invalid timeslot data")
+		return
+	}
+
+	// Безопасное преобразование в int
+	tsID, err := strconv.Atoi(parts[1])
+	if err != nil {
+		h.sendErrorMessage(chatID, "Invalid timeslot ID")
+		return
+	}
+
+	// Проверяем, что temp для этого chatID инициализирован
+	if h.temp[chatID] == nil {
+		h.temp[chatID] = make(map[string]string)
+	}
+
+	// Проверяем, что doctor_id существует
+	doctorIDStr, exists := h.temp[chatID]["doctor_id"]
+	if !exists || doctorIDStr == "" {
+		h.sendErrorMessage(chatID, "Doctor ID not found")
+		return
+	}
+
+	// Безопасное преобразование doctor_id в int
+	doctorID, err := strconv.Atoi(doctorIDStr)
+	if err != nil {
+		h.sendErrorMessage(chatID, "Invalid doctor ID")
+		return
+	}
 
 	h.temp[chatID]["timeslot_id"] = parts[1]
 
-	for _, t := range must(
-		h.doctorService.GetAvailableTimeSlots(
-			mustAtoi(h.temp[chatID]["doctor_id"]),
-		),
-	) {
+	// Получаем доступные слоты с обработкой ошибок
+	timeslots, err := h.doctorService.GetAvailableTimeSlots(doctorID)
+	if err != nil {
+		h.sendErrorMessage(chatID, "Failed to get available timeslots")
+		return
+	}
+
+	// Проверяем, что слоты не nil
+	if timeslots == nil {
+		h.sendErrorMessage(chatID, "No timeslots available")
+		return
+	}
+
+	// Ищем нужный слот
+	var foundTimeslot bool
+	for _, t := range timeslots {
 		if t.ID == tsID {
 			h.temp[chatID]["timeslot_time"] = t.StartTime.Format("02.01.2006 15:04")
+			foundTimeslot = true
 			break
+		}
+	}
+
+	// Проверяем, что слот найден
+	if !foundTimeslot {
+		h.sendErrorMessage(chatID, "Selected timeslot not found")
+		return
+	}
+
+	// Проверяем, что все необходимые данные есть в temp
+	requiredFields := []string{"spec_name", "doctor_name", "service_name", "timeslot_time"}
+	for _, field := range requiredFields {
+		if _, exists := h.temp[chatID][field]; !exists {
+			h.sendErrorMessage(chatID, "Missing booking information")
+			return
 		}
 	}
 
@@ -361,6 +420,25 @@ func (h *BotHandler) handleTimeslotSelected(chatID int64, data string) {
 
 	h.state[chatID] = "booking_confirm"
 	h.bot.Send(msg)
+}
+
+// Вспомогательная функция для отправки ошибок
+func (h *BotHandler) sendErrorMessage(chatID int64, errorMsg string) {
+	lang := h.getUserLanguage(chatID)
+	msg := tgbotapi.NewMessage(chatID, h.loc.Get(lang, "error_occurred"))
+	h.bot.Send(msg)
+	// Логируем ошибку для отладки
+	log.Printf("Error in handleTimeslotSelected for chatID %d: %s", chatID, errorMsg)
+}
+
+// Также добавьте инициализацию temp в конструкторе или другом подходящем месте
+func (h *BotHandler) ensureTempInitialized(chatID int64) {
+	if h.temp == nil {
+		h.temp = make(map[int64]map[string]string)
+	}
+	if h.temp[chatID] == nil {
+		h.temp[chatID] = make(map[string]string)
+	}
 }
 
 func (h *BotHandler) handleBookingConfirm(chatID int64, ok bool) {
