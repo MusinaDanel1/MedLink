@@ -188,6 +188,7 @@ func main() {
 	// Initialize Telegram bot
 	var bot *tgbotapi.BotAPI
 	var botHandler *telegram.BotHandler
+	var notificationService *usecase.NotificationService
 
 	if token != "dummy_token" {
 		bot, err = tgbotapi.NewBotAPI(token)
@@ -197,24 +198,20 @@ func main() {
 		bot.Debug = true
 		log.Printf("Запущен бот: %s", bot.Self.UserName)
 
-		// Создаем bot handler
+		// Создаем bot handler БЕЗ notification service (пока nil)
 		botHandler = telegram.NewBotHandler(bot, patientService, doctorService, appointmentService, nil, openaiService)
-	}
 
-	var notificationService *usecase.NotificationService
-	if botHandler != nil {
+		// ТЕПЕРЬ создаем notification service с bot handler
 		notificationService = usecase.NewNotificationService(
 			appointmentRepo,
 			patientRepo,
-			botHandler, // передаем botHandler как TelegramNotifier
+			botHandler,
 		)
-
-		// Устанавливаем notification service в bot handler если есть такой метод
-		// botHandler.SetNotificationService(notificationService)
 
 		// Запускаем планировщик уведомлений
 		notificationService.StartNotificationScheduler()
 	}
+
 	msgHandler := http1.NewMessageHandler(msgService, appointmentService)
 	apptHandler := http1.NewAppointmentHandler(appointmentService, doctorService)
 	apptHandler.SetBotHandler(botHandler)

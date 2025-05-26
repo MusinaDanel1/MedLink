@@ -217,15 +217,16 @@ func (h *BotHandler) showAvailableDates(chatID int64) {
 		return
 	}
 
+	// Собираем даты в слайс и сортируем
 	var dates []string
 	for dateStr := range dateMap {
 		dates = append(dates, dateStr)
 	}
 	sort.Strings(dates)
 
-	// Создаем кнопки для дат
+	// Создаем кнопки для дат, используя отсортированный слайс
 	var rows [][]tgbotapi.InlineKeyboardButton
-	for dateStr := range dateMap {
+	for _, dateStr := range dates { // <-- Используем отсортированный слайс вместо итерации по map
 		date, _ := time.Parse("2006-01-02", dateStr)
 		displayDate := date.Format("02.01.2006")
 

@@ -360,16 +360,17 @@ func (r *AppointmentRepository) GetUpcomingAppointments(from, to time.Time) ([]d
 			p.telegram_id,
 			d.full_name as doctor_name,
 			s.name as service_name,
-			a.start_time,
+			t.start_time,
 			COALESCE(p.language, 'ru') as language
 		FROM appointments a
 		JOIN patients p ON a.patient_id = p.id
-		JOIN schedules sch ON a.schedule_id = sch.id
+		JOIN timeslots t ON a.timeslot_id = t.id
+		JOIN schedules sch ON t.schedule_id = sch.id
 		JOIN doctors d ON sch.doctor_id = d.id
 		JOIN services s ON sch.service_id = s.id
-		WHERE a.start_time BETWEEN $1 AND $2
-		AND a.status = 'confirmed'
-		ORDER BY a.start_time
+		WHERE t.start_time BETWEEN $1 AND $2
+		AND a.status = 'Записан'
+		ORDER BY t.start_time
 	`
 
 	rows, err := r.db.Query(query, from, to)
