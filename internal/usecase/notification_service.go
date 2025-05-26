@@ -8,9 +8,10 @@ import (
 )
 
 type NotificationService struct {
-	appointmentRepo domain.AppointmentRepository
-	patientRepo     domain.PatientRepository
-	telegramBot     TelegramNotifier
+	appointmentRepo   domain.AppointmentRepository
+	patientRepo       domain.PatientRepository
+	telegramBot       TelegramNotifier
+	sentNotifications map[string]bool
 }
 
 type TelegramNotifier interface {
@@ -24,9 +25,10 @@ func NewNotificationService(
 	telegramBot TelegramNotifier,
 ) *NotificationService {
 	return &NotificationService{
-		appointmentRepo: appointmentRepo,
-		patientRepo:     patientRepo,
-		telegramBot:     telegramBot,
+		appointmentRepo:   appointmentRepo,
+		patientRepo:       patientRepo,
+		telegramBot:       telegramBot,
+		sentNotifications: make(map[string]bool), // инициализируем
 	}
 }
 
@@ -41,6 +43,7 @@ func (ns *NotificationService) StartNotificationScheduler() {
 
 func (ns *NotificationService) checkAndSendNotifications() {
 	now := time.Now()
+	log.Printf("Checking notifications at: %v", now)
 
 	appointments, err := ns.appointmentRepo.GetUpcomingAppointments(now, now.Add(25*time.Hour))
 	if err != nil {
@@ -48,37 +51,45 @@ func (ns *NotificationService) checkAndSendNotifications() {
 		return
 	}
 
+	log.Printf("Found %d upcoming appointments", len(appointments))
+
 	for _, appt := range appointments {
 		timeUntil := appt.StartTime.Sub(now)
+		log.Printf("Appointment %d: time until = %v", appt.AppointmentID, timeUntil)
 
-		if ns.shouldSendNotification(timeUntil) {
+		// Вот здесь — передаем appt.AppointmentID вторым аргументом
+		if ns.shouldSendNotification(timeUntil, appt.AppointmentID) {
+			log.Printf("Sending notification for appointment %d", appt.AppointmentID)
 			ns.sendAppointmentNotification(appt, timeUntil)
 		}
 	}
 }
 
-func (ns *NotificationService) shouldSendNotification(timeUntil time.Duration) bool {
-	// 24 часа (±2 минуты)
-	if timeUntil >= 23*time.Hour+58*time.Minute && timeUntil <= 24*time.Hour+2*time.Minute {
-		return true
+func (ns *NotificationService) shouldSendNotification(timeUntil time.Duration, apptID int) bool {
+	// Создаем уникальный ключ для каждого типа уведомления
+	var notifType string
+
+	// 24 часа (±5 минут для большей надежности)
+	if timeUntil >= 23*time.Hour+55*time.Minute && timeUntil <= 24*time.Hour+5*time.Minute {
+		notifType = fmt.Sprintf("%d_24h", apptID)
+	} else if timeUntil >= 5*time.Hour+55*time.Minute && timeUntil <= 6*time.Hour+5*time.Minute {
+		notifType = fmt.Sprintf("%d_6h", apptID)
+	} else if timeUntil >= 55*time.Minute && timeUntil <= 1*time.Hour+5*time.Minute {
+		notifType = fmt.Sprintf("%d_1h", apptID)
+	} else if timeUntil >= 25*time.Minute && timeUntil <= 35*time.Minute {
+		notifType = fmt.Sprintf("%d_30m", apptID)
+	} else {
+		return false
 	}
 
-	// 6 часов (±2 минуты)
-	if timeUntil >= 5*time.Hour+58*time.Minute && timeUntil <= 6*time.Hour+2*time.Minute {
-		return true
+	// Проверяем, не отправляли ли уже это уведомление
+	if ns.sentNotifications[notifType] {
+		return false
 	}
 
-	// 1 час (±2 минуты)
-	if timeUntil >= 58*time.Minute && timeUntil <= 1*time.Hour+2*time.Minute {
-		return true
-	}
-
-	// 30 минут (±2 минуты)
-	if timeUntil >= 28*time.Minute && timeUntil <= 32*time.Minute {
-		return true
-	}
-
-	return false
+	// Помечаем как отправленное
+	ns.sentNotifications[notifType] = true
+	return true
 }
 
 func (ns *NotificationService) sendAppointmentNotification(appt domain.NotificationData, timeUntil time.Duration) {
