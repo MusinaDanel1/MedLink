@@ -247,9 +247,6 @@ func (h *BotHandler) showAvailableDates(chatID int64) {
 
 // Новая функция для обработки выбора даты
 func (h *BotHandler) handleDateSelected(chatID int64, data string) {
-	if h.temp[chatID] == nil {
-		h.temp[chatID] = make(map[string]string)
-	}
 	lang := h.getUserLanguage(chatID)
 	parts := strings.Split(data, "_")
 	if len(parts) != 2 {
@@ -258,9 +255,12 @@ func (h *BotHandler) handleDateSelected(chatID int64, data string) {
 	}
 
 	selectedDate := parts[1]
+
+	if h.temp[chatID] == nil {
+		h.temp[chatID] = make(map[string]string)
+	}
 	h.temp[chatID]["selected_date"] = selectedDate
 
-	// Получаем слоты для выбранной даты
 	docID := mustAtoi(h.temp[chatID]["doctor_id"])
 	slots, err := h.doctorService.GetAvailableTimeSlots(docID)
 	if err != nil {
@@ -268,7 +268,7 @@ func (h *BotHandler) handleDateSelected(chatID int64, data string) {
 		return
 	}
 
-	// Фильтруем слоты по выбранной дате и правильно типизируем
+	// Фильтруем слоты по выбранной дате
 	var daySlots []TimeSlot
 	for _, slot := range slots {
 		slotDate := slot.StartTime.Format("2006-01-02")
@@ -292,10 +292,24 @@ func (h *BotHandler) handleDateSelected(chatID int64, data string) {
 		return daySlots[i].StartTime.Before(daySlots[j].StartTime)
 	})
 
-	// Создаем кнопки для времени
-	var rows [][]tgbotapi.InlineKeyboardButton
+	// ИСПРАВЛЕНИЕ: Группируем по времени, чтобы избежать дубликатов кнопок
+	timeToSlot := make(map[string]TimeSlot)
+	var uniqueTimes []string
+
 	for _, slot := range daySlots {
 		timeStr := slot.StartTime.Format("15:04")
+
+		// Берем только первый слот для каждого времени
+		if _, exists := timeToSlot[timeStr]; !exists {
+			timeToSlot[timeStr] = slot
+			uniqueTimes = append(uniqueTimes, timeStr)
+		}
+	}
+
+	// Создаем кнопки только для уникальных времен
+	var rows [][]tgbotapi.InlineKeyboardButton
+	for _, timeStr := range uniqueTimes {
+		slot := timeToSlot[timeStr]
 		rows = append(rows,
 			tgbotapi.NewInlineKeyboardRow(
 				tgbotapi.NewInlineKeyboardButtonData(
@@ -305,7 +319,6 @@ func (h *BotHandler) handleDateSelected(chatID int64, data string) {
 		)
 	}
 
-	// Форматируем дату для отображения
 	date, _ := time.Parse("2006-01-02", selectedDate)
 	displayDate := date.Format("02.01.2006")
 
