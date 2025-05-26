@@ -2,12 +2,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   console.log("Doctor dashboard loaded");
 
   function parseLocalDateTime(isoString) {
-    const dt = new Date(isoString);
-  // Проверяем, нужна ли коррекция
-  console.log('Original ISO string:', isoString);
-  console.log('Parsed date:', dt);
-  console.log('Local time:', dt.toLocaleString());
-  return dt;
+    // Убираем информацию о часовом поясе и парсим как локальное время
+    const cleanIsoString = isoString.replace(/[+-]\d{2}:\d{2}|Z$/g, '');
+    const dt = new Date(cleanIsoString);
+    console.log('Original ISO string:', isoString);
+    console.log('Cleaned string:', cleanIsoString);
+    console.log('Parsed date:', dt);
+    return dt;
   }
 
   const calendarEl = document.getElementById("calendar");
@@ -243,7 +244,7 @@ function updatePatientSearch() {
   // 3. инициализировать календарь
   const calendar = new FullCalendar.Calendar(calendarEl, {
     initialView: "timeGridWeek",
-    timeZone: "local",
+    timeZone: false,
     locale: "ru",
     buttonText: {
       today: "Сегодня",
