@@ -238,7 +238,8 @@ func (h *AppointmentHandler) AcceptAppointment(c *gin.Context) {
 	}
 	host := c.Request.Host
 
-	absURL := fmt.Sprintf("%s://%s%s&role=doctor",
+	// Fix: Don't append role=doctor again since it's already in relURL
+	absURL := fmt.Sprintf("%s://%s%s",
 		scheme, host, relURL)
 
 	c.JSON(http.StatusOK, gin.H{

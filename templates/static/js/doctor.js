@@ -2,7 +2,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   console.log("Doctor dashboard loaded");
 
   function parseLocalDateTime(isoString) {
-    return new Date(isoString);
+    const dt = new Date(isoString);
+  // Отнимем от полученного времени локальный сдвиг,
+  // чтобы вернуть реальное серверное время
+  const msOffset = dt.getTimezoneOffset() * 60_000;
+  return new Date(dt.getTime() + msOffset);   
   }
 
   const calendarEl = document.getElementById("calendar");
