@@ -247,6 +247,9 @@ func (h *BotHandler) showAvailableDates(chatID int64) {
 
 // Новая функция для обработки выбора даты
 func (h *BotHandler) handleDateSelected(chatID int64, data string) {
+	if h.temp[chatID] == nil {
+		h.temp[chatID] = make(map[string]string)
+	}
 	lang := h.getUserLanguage(chatID)
 	parts := strings.Split(data, "_")
 	if len(parts) != 2 {
