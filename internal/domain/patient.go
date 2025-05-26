@@ -18,4 +18,5 @@ type PatientService interface {
 	Exists(chatID int64) bool
 	GetIDByChatID(chatID int64) (int, error)
 	GetAll() ([]Patient, error)
+	GetByTelegramID(telegramID int64) (*Patient, error)
 }

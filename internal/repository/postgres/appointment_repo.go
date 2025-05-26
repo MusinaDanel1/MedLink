@@ -5,6 +5,7 @@ import (
 	"log"
 	"strings"
 	"telemed/internal/domain"
+	"time"
 
 	"github.com/lib/pq"
 )
@@ -350,4 +351,49 @@ func (r *AppointmentRepository) FetchDetails(apptID int) (domain.AppointmentDeta
 		d.Prescriptions = append(d.Prescriptions, p)
 	}
 	return d, rows.Err()
+}
+
+func (r *AppointmentRepository) GetUpcomingAppointments(from, to time.Time) ([]domain.NotificationData, error) {
+	query := `
+		SELECT 
+			a.id,
+			p.telegram_id,
+			d.full_name as doctor_name,
+			s.name as service_name,
+			a.start_time,
+			COALESCE(p.language, 'ru') as language
+		FROM appointments a
+		JOIN patients p ON a.patient_id = p.id
+		JOIN schedules sch ON a.schedule_id = sch.id
+		JOIN doctors d ON sch.doctor_id = d.id
+		JOIN services s ON sch.service_id = s.id
+		WHERE a.start_time BETWEEN $1 AND $2
+		AND a.status = 'confirmed'
+		ORDER BY a.start_time
+	`
+
+	rows, err := r.db.Query(query, from, to)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var notifications []domain.NotificationData
+	for rows.Next() {
+		var notif domain.NotificationData
+		err := rows.Scan(
+			&notif.AppointmentID,
+			&notif.PatientChatID,
+			&notif.DoctorName,
+			&notif.ServiceName,
+			&notif.StartTime,
+			&notif.Language,
+		)
+		if err != nil {
+			return nil, err
+		}
+		notifications = append(notifications, notif)
+	}
+
+	return notifications, nil
 }

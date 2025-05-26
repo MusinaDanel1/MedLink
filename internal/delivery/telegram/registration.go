@@ -39,7 +39,7 @@ func (h *BotHandler) handleUserInput(chatID int64, msg string) {
 		fullName := h.temp[chatID]["full_name"]
 		iin := strings.TrimSpace(msg)
 
-		err := h.patient.FindOrRegister(chatID, fullName, iin)
+		err := h.patientService.FindOrRegister(chatID, fullName, iin)
 		if err != nil {
 			h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "registration_error")))
 			return

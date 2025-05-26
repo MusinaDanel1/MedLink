@@ -32,3 +32,7 @@ func (s *PatientService) GetIDByChatID(chatID int64) (int, error) {
 func (s *PatientService) GetAll() ([]domain.Patient, error) {
 	return s.repo.GetAll()
 }
+
+func (ps *PatientService) GetByTelegramID(telegramID int64) (*domain.Patient, error) {
+	return ps.repo.GetByTelegramID(telegramID)
+}

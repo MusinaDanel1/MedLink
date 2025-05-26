@@ -9,29 +9,47 @@ import (
 )
 
 type BotHandler struct {
-	bot         *tgbotapi.BotAPI
-	patient     *usecase.PatientService
-	doctor      *usecase.DoctorService
-	appointment *usecase.AppointmentService
-	state       map[int64]string
-	temp        map[int64]map[string]string
-	openai      usecase.Service
-	userLang    map[int64]Language
-	loc         *Localization
+	bot                 *tgbotapi.BotAPI
+	patientService      *usecase.PatientService
+	doctorService       *usecase.DoctorService
+	appointmentService  *usecase.AppointmentService
+	notificationService *usecase.NotificationService
+	state               map[int64]string
+	temp                map[int64]map[string]string
+	openai              OpenAIService
+	userLang            map[int64]Language
+	loc                 *Localization
 }
 
-func NewBotHandler(bot *tgbotapi.BotAPI, patient *usecase.PatientService, doctor *usecase.DoctorService, appointment *usecase.AppointmentService, openai usecase.Service) *BotHandler {
-	return &BotHandler{
-		bot:         bot,
-		patient:     patient,
-		doctor:      doctor,
-		appointment: appointment,
-		state:       make(map[int64]string),
-		temp:        make(map[int64]map[string]string),
-		openai:      openai,
-		userLang:    make(map[int64]Language),
-		loc:         NewLocalization(),
+type OpenAIService interface {
+	AskChatGPT(text string) (string, error)
+}
+
+func NewBotHandler(
+	bot *tgbotapi.BotAPI,
+	patientService *usecase.PatientService,
+	doctorService *usecase.DoctorService,
+	appointmentService *usecase.AppointmentService,
+	notificationService *usecase.NotificationService,
+	openai OpenAIService,
+) *BotHandler {
+	handler := &BotHandler{
+		bot:                 bot,
+		patientService:      patientService,
+		doctorService:       doctorService,
+		appointmentService:  appointmentService,
+		notificationService: notificationService,
+		state:               make(map[int64]string),
+		temp:                make(map[int64]map[string]string),
+		openai:              openai,
+		userLang:            make(map[int64]Language),
+		loc:                 NewLocalization(),
 	}
+
+	// Запускаем планировщик уведомлений
+	handler.notificationService.StartNotificationScheduler()
+
+	return handler
 }
 
 func (h *BotHandler) HandleUpdate(update tgbotapi.Update) {
@@ -122,7 +140,7 @@ func (h *BotHandler) handleLanguageSelection(chatID int64, text string) {
 	delete(h.state, chatID)
 
 	// Check if user is registered
-	isRegistered := h.patient.Exists(chatID)
+	isRegistered := h.patientService.Exists(chatID)
 	if isRegistered {
 		h.sendMainMenu(chatID)
 	} else {
@@ -163,6 +181,12 @@ func (h *BotHandler) SendReport(chatID int64, pdfBytes []byte, apptID int) error
 	return err
 }
 
+func (h *BotHandler) SendNotification(chatID int64, message string) error {
+	msg := tgbotapi.NewMessage(chatID, message)
+	_, err := h.bot.Send(msg)
+	return err
+}
+
 // internal/delivery/telegram/bot_handler.go
 func (h *BotHandler) sendVideoLink(chatID int64, apptID int) {
 	lang := h.getUserLanguage(chatID)
@@ -177,4 +201,9 @@ func (h *BotHandler) sendVideoLink(chatID int64, apptID int) {
 	msg := tgbotapi.NewMessage(chatID,
 		h.loc.Get(lang, "video_link_message")+"\n"+videoURL)
 	h.bot.Send(msg)
+}
+
+func (h *BotHandler) SendVideoLink(chatID int64, appointmentID int) error {
+	h.sendVideoLink(chatID, appointmentID)
+	return nil
 }

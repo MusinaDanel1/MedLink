@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"sort"
 	"strconv"
 	"strings"
 	"telemed/internal/usecase"
@@ -8,6 +9,13 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
+
+type TimeSlot struct {
+	ID         int
+	ScheduleID int
+	StartTime  time.Time
+	EndTime    time.Time
+}
 
 func (h *BotHandler) handleCallback(cb *tgbotapi.CallbackQuery) {
 	chatID := cb.Message.Chat.ID
@@ -50,7 +58,7 @@ func (h *BotHandler) handleCallback(cb *tgbotapi.CallbackQuery) {
 
 func (h *BotHandler) handleBookingStart(chatID int64) {
 	lang := h.getUserLanguage(chatID)
-	specs, err := h.doctor.GetAllSpecializations()
+	specs, err := h.doctorService.GetAllSpecializations()
 	if err != nil || len(specs) == 0 {
 		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "no_specializations")))
 		return
@@ -87,14 +95,14 @@ func (h *BotHandler) handleSpecSelected(chatID int64, data string) {
 
 	h.temp[chatID]["spec_id"] = parts[1]
 
-	for _, s := range must(h.doctor.GetAllSpecializations()) {
+	for _, s := range must(h.doctorService.GetAllSpecializations()) {
 		if s.ID == specID {
 			h.temp[chatID]["spec_name"] = s.Name
 			break
 		}
 	}
 
-	docs, err := h.doctor.GetDoctorsBySpecialization(specID)
+	docs, err := h.doctorService.GetDoctorsBySpecialization(specID)
 	if err != nil || len(docs) == 0 {
 		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "no_doctors")))
 		return
@@ -129,7 +137,7 @@ func (h *BotHandler) handleDoctorSelected(chatID int64, data string) {
 	h.temp[chatID]["doctor_id"] = parts[1]
 
 	for _, d := range must(
-		h.doctor.GetDoctorsBySpecialization(
+		h.doctorService.GetDoctorsBySpecialization(
 			mustAtoi(h.temp[chatID]["spec_id"]),
 		),
 	) {
@@ -139,7 +147,7 @@ func (h *BotHandler) handleDoctorSelected(chatID int64, data string) {
 		}
 	}
 
-	services, err := h.doctor.GetServicesByDoctor(docID)
+	services, err := h.doctorService.GetServicesByDoctor(docID)
 	if err != nil || len(services) == 0 {
 		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "no_services")))
 		return
@@ -174,7 +182,7 @@ func (h *BotHandler) handleServiceSelected(chatID int64, data string) {
 	h.temp[chatID]["service_id"] = parts[1]
 
 	for _, s := range must(
-		h.doctor.GetServicesByDoctor(
+		h.doctorService.GetServicesByDoctor(
 			mustAtoi(h.temp[chatID]["doctor_id"]),
 		),
 	) {
@@ -191,7 +199,7 @@ func (h *BotHandler) showAvailableDates(chatID int64) {
 	lang := h.getUserLanguage(chatID)
 	docID := mustAtoi(h.temp[chatID]["doctor_id"])
 
-	slots, err := h.doctor.GetAvailableTimeSlots(docID)
+	slots, err := h.doctorService.GetAvailableTimeSlots(docID)
 	if err != nil || len(slots) == 0 {
 		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "no_timeslots")))
 		return
@@ -208,6 +216,12 @@ func (h *BotHandler) showAvailableDates(chatID int64) {
 		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "no_available_dates")))
 		return
 	}
+
+	var dates []string
+	for dateStr := range dateMap {
+		dates = append(dates, dateStr)
+	}
+	sort.Strings(dates)
 
 	// Создаем кнопки для дат
 	var rows [][]tgbotapi.InlineKeyboardButton
@@ -244,18 +258,23 @@ func (h *BotHandler) handleDateSelected(chatID int64, data string) {
 
 	// Получаем слоты для выбранной даты
 	docID := mustAtoi(h.temp[chatID]["doctor_id"])
-	slots, err := h.doctor.GetAvailableTimeSlots(docID)
+	slots, err := h.doctorService.GetAvailableTimeSlots(docID)
 	if err != nil {
 		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "no_timeslots")))
 		return
 	}
 
-	// Фильтруем слоты по выбранной дате
-	var daySlots []interface{}
+	// Фильтруем слоты по выбранной дате и правильно типизируем
+	var daySlots []TimeSlot
 	for _, slot := range slots {
 		slotDate := slot.StartTime.Format("2006-01-02")
 		if slotDate == selectedDate {
-			daySlots = append(daySlots, slot)
+			daySlots = append(daySlots, TimeSlot{
+				ID:         slot.ID,
+				ScheduleID: slot.ScheduleID,
+				StartTime:  slot.StartTime,
+				EndTime:    slot.EndTime,
+			})
 		}
 	}
 
@@ -264,16 +283,14 @@ func (h *BotHandler) handleDateSelected(chatID int64, data string) {
 		return
 	}
 
+	// Сортируем слоты по времени
+	sort.Slice(daySlots, func(i, j int) bool {
+		return daySlots[i].StartTime.Before(daySlots[j].StartTime)
+	})
+
 	// Создаем кнопки для времени
 	var rows [][]tgbotapi.InlineKeyboardButton
-	for _, slotInterface := range daySlots {
-		slot := slotInterface.(struct {
-			ID         int
-			ScheduleID int
-			StartTime  time.Time
-			EndTime    time.Time
-		})
-
+	for _, slot := range daySlots {
 		timeStr := slot.StartTime.Format("15:04")
 		rows = append(rows,
 			tgbotapi.NewInlineKeyboardRow(
@@ -302,7 +319,7 @@ func (h *BotHandler) handleTimeslotSelected(chatID int64, data string) {
 	h.temp[chatID]["timeslot_id"] = parts[1]
 
 	for _, t := range must(
-		h.doctor.GetAvailableTimeSlots(
+		h.doctorService.GetAvailableTimeSlots(
 			mustAtoi(h.temp[chatID]["doctor_id"]),
 		),
 	) {
@@ -340,7 +357,7 @@ func (h *BotHandler) handleBookingConfirm(chatID int64, ok bool) {
 		return
 	}
 
-	patientID, err := h.patient.GetIDByChatID(chatID)
+	patientID, err := h.patientService.GetIDByChatID(chatID)
 	if err != nil {
 		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "patient_data_error")))
 		return
@@ -350,7 +367,7 @@ func (h *BotHandler) handleBookingConfirm(chatID int64, ok bool) {
 	tsID := mustAtoi(h.temp[chatID]["timeslot_id"])
 
 	// First get the timeslot to access its schedule ID and times
-	slots, err := h.doctor.GetAvailableTimeSlots(docID)
+	slots, err := h.doctorService.GetAvailableTimeSlots(docID)
 	if err != nil {
 		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "slot_data_error")))
 		return
@@ -368,7 +385,7 @@ func (h *BotHandler) handleBookingConfirm(chatID int64, ok bool) {
 		}
 	}
 
-	apptID, err := h.appointment.BookAppointment(
+	apptID, err := h.appointmentService.BookAppointment(
 		scheduleID, patientID, startTime, endTime,
 	)
 

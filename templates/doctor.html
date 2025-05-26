@@ -19,9 +19,14 @@
     <a class="navbar-brand" href="#">Кабинет врача</a>
     <div class="collapse navbar-collapse">
       <ul class="navbar-nav me-auto"></ul>
-      <span class="navbar-text">
-        {{ if .Doctor }}{{ .Doctor.Name }}{{ else }}Загрузка...{{ end }}
-      </span>
+      <div class="d-flex align-items-center">
+        <span class="navbar-text me-3">
+          {{ if .Doctor }}{{ .Doctor.Name }}{{ else }}Загрузка...{{ end }}
+        </span>
+        <a href="/login" class="btn btn-outline-danger btn-sm">
+          Выйти
+        </a>
+      </div>
     </div>
   </div>
 </nav>

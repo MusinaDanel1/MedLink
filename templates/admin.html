@@ -32,11 +32,29 @@
       margin: 40px auto;
       padding: 0 20px;
     }
-    h1 {
-      text-align: center;
-      font-weight: 500;
+    .header-admin {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       margin-bottom: 20px;
     }
+    .header-admin h1 {
+        margin: 0; /* Remove default margin from h1 */
+    }
+    .logout-link {
+        text-decoration: none;
+        color: var(--danger);
+        font-weight: 500;
+        padding: 8px 15px; /* Add some padding */
+        border: 1px solid var(--danger); /* Add a border for button-like feel */
+        border-radius: 4px;
+        transition: background-color 0.3s, color 0.3s;
+    }
+    .logout-link:hover {
+        background-color: var(--danger);
+        color: #fff;
+    }
+
     .tabs {
       display: flex;
       justify-content: center;
@@ -166,7 +184,10 @@
 
 <body>
   <div class="container">
-    <h1>Админ-панель</h1>
+    <div class="header-admin">
+      <h1>Админ-панель</h1>
+      <a href="/login" class="logout-link">Выйти</a>
+    </div>
 
     <div class="tabs">
       <div class="tab active" onclick="switchTab('register')">
@@ -351,7 +372,7 @@ function loadSpecializations() {
       ...data,
       password: data.password ? '[HIDDEN]' : undefined
     });
-    
+
     fetch(url, {
       method: "POST",
       headers: {
@@ -364,19 +385,19 @@ function loadSpecializations() {
       const text = await res.text();
       console.log('Response status:', res.status);
       console.log('Response text:', text);
-      
+
       const el = document.getElementById(responseId);
       el.className = "response";
-      
+
       try {
         const jsonResponse = JSON.parse(text);
-        el.textContent = res.ok ? 
-          (jsonResponse.message || "Операция выполнена успешно") : 
+        el.textContent = res.ok ?
+          (jsonResponse.message || "Операция выполнена успешно") :
           ("Ошибка: " + (jsonResponse.error || text));
       } catch (e) {
         el.textContent = res.ok ? text : "Ошибка: " + text;
       }
-      
+
       if (!res.ok) el.classList.add("error");
     })
     .catch(err => {
@@ -436,7 +457,7 @@ function loadSpecializations() {
     e.preventDefault();
     const formData = new FormData(this);
     const data = Object.fromEntries(formData.entries());
-    
+
     // Validate IIN
     if (!/^\d{12}$/.test(data.iin)) {
       const el = document.getElementById("register-response");
@@ -465,7 +486,7 @@ function loadSpecializations() {
       // Remove specialization_id if role is not doctor
       delete data.specialization_id;
     }
-    
+
     // Add password validation
     if (data.password.length < 6) {
       const el = document.getElementById("register-response");
@@ -473,7 +494,7 @@ function loadSpecializations() {
       el.className = "response error";
       return;
     }
-    
+
     postJSON("/admin/register", data, "register-response");
   });
 

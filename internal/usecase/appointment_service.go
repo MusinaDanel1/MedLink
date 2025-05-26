@@ -98,3 +98,13 @@ func (s *AppointmentService) GetAppointmentStatus(appointmentID int) (string, er
 	}
 	return appt.Status, nil
 }
+
+func (s *AppointmentService) GetUpcomingAppointments(
+	from, to time.Time,
+) ([]domain.NotificationData, error) {
+	notifications, err := s.repo.GetUpcomingAppointments(from, to)
+	if err != nil {
+		return nil, err
+	}
+	return notifications, nil
+}

@@ -154,22 +154,6 @@ func main() {
 
 	fmt.Println("Админ и врач успешно добавлены в базу данных!")
 
-	var bot *tgbotapi.BotAPI
-	var botHandler *telegram.BotHandler
-
-	// Skip Telegram bot initialization if using dummy token
-	log.Printf("Используем TELEGRAM_BOT_TOKEN=%q", token)
-	if token != "dummy_token" {
-		bot, err = tgbotapi.NewBotAPI(token)
-		log.Println("BOT STARTING!!!!", bot)
-		if err != nil {
-			log.Fatal("Ошибка инициализации Telegram-бота: ", err)
-		}
-
-		bot.Debug = true
-		log.Printf("Запущен бот: %s", bot.Self.UserName)
-	}
-
 	// Initialize repositories
 	authRepo := postgres.NewAuthRepository(db)
 	adminRepo := postgres.NewAdminRepository(db)
@@ -201,10 +185,36 @@ func main() {
 	doctorHandler.SetPatientService(patientService)
 	schedH := http1.NewScheduleHandler(schedSvc, timeslotRepo)
 
-	if bot != nil {
-		botHandler = telegram.NewBotHandler(bot, patientService, doctorService, appointmentService, openaiService)
+	// Initialize Telegram bot
+	var bot *tgbotapi.BotAPI
+	var botHandler *telegram.BotHandler
+
+	if token != "dummy_token" {
+		bot, err = tgbotapi.NewBotAPI(token)
+		if err != nil {
+			log.Fatal("Ошибка инициализации Telegram-бота: ", err)
+		}
+		bot.Debug = true
+		log.Printf("Запущен бот: %s", bot.Self.UserName)
+
+		// Создаем bot handler
+		botHandler = telegram.NewBotHandler(bot, patientService, doctorService, appointmentService, nil, openaiService)
 	}
 
+	var notificationService *usecase.NotificationService
+	if botHandler != nil {
+		notificationService = usecase.NewNotificationService(
+			appointmentRepo,
+			patientRepo,
+			botHandler, // передаем botHandler как TelegramNotifier
+		)
+
+		// Устанавливаем notification service в bot handler если есть такой метод
+		// botHandler.SetNotificationService(notificationService)
+
+		// Запускаем планировщик уведомлений
+		notificationService.StartNotificationScheduler()
+	}
 	msgHandler := http1.NewMessageHandler(msgService, appointmentService)
 	apptHandler := http1.NewAppointmentHandler(appointmentService, doctorService)
 	apptHandler.SetBotHandler(botHandler)

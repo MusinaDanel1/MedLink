@@ -48,6 +48,15 @@ type Prescription struct {
 	Schedule   string
 }
 
+type NotificationData struct {
+	AppointmentID int
+	PatientChatID int64
+	DoctorName    string
+	ServiceName   string
+	StartTime     time.Time
+	Language      string
+}
+
 type AppointmentRepository interface {
 	CreateAppointment(a Appointment) (int, error)
 	MarkTimeslotAsBooked(timeslotID int) error
@@ -57,6 +66,7 @@ type AppointmentRepository interface {
 	ListBySchedules(scheduleIDs []int) ([]Appointment, error)
 	UpdateStatus(id int, status string) error
 	FetchDetails(apptID int) (AppointmentDetails, error)
+	GetUpcomingAppointments(from, to time.Time) ([]NotificationData, error)
 }
 
 type ScheduleRepository interface {

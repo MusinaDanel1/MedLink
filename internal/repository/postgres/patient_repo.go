@@ -48,3 +48,8 @@ func (r *PatientRepository) GetAll() ([]domain.Patient, error) {
 
 	return patients, nil
 }
+func (pr *PatientRepository) GetIDByChatID(telegramID int64) (int, error) {
+	var id int
+	err := pr.db.QueryRow("SELECT id FROM patients WHERE telegram_id = $1", telegramID).Scan(&id)
+	return id, err
+}
