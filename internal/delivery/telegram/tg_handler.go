@@ -46,10 +46,11 @@ func NewBotHandler(
 		loc:                 NewLocalization(),
 	}
 
-	// Запускаем планировщик уведомлений
-	handler.notificationService.StartNotificationScheduler()
-
 	return handler
+}
+
+func (h *BotHandler) SetNotificationService(ns *usecase.NotificationService) {
+	h.notificationService = ns
 }
 
 func (h *BotHandler) HandleUpdate(update tgbotapi.Update) {

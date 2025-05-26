@@ -208,6 +208,8 @@ func main() {
 			botHandler,
 		)
 
+		// 3) Инъектим notificationService в botHandler
+		botHandler.SetNotificationService(notificationService)
 		// Запускаем планировщик уведомлений
 		notificationService.StartNotificationScheduler()
 	}
