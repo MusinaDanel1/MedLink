@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"errors"
+	"fmt"
 	"telemed/internal/domain"
 	"time"
 )
@@ -36,7 +37,7 @@ func (u *AppointmentService) BookAppointment(
 		return 0, ErrSlotBooked
 	}
 	ap := domain.Appointment{
-		DoctorID:   sch.DoctorID,
+		// DoctorID:   sch.DoctorID, // Removed
 		ServiceID:  sch.ServiceID,
 		TimeslotID: ts.ID,
 		PatientID:  patientID,
@@ -107,4 +108,40 @@ func (s *AppointmentService) GetUpcomingAppointments(
 		return nil, err
 	}
 	return notifications, nil
+}
+
+func (s *AppointmentService) GetScheduleByTimeslotID(timeslotID int) (*domain.Schedule, error) {
+	timeslot, err := s.TRepo.GetByID(timeslotID)
+	if err != nil {
+		// Consider wrapping the error for more context if that's a project pattern
+		// e.g., return nil, fmt.Errorf("error fetching timeslot %d: %w", timeslotID, err)
+		// For now, returning a more specific error if it's sql.ErrNoRows, otherwise the original error.
+		// This assumes TRepo.GetByID returns sql.ErrNoRows for not found.
+		// If TRepo.GetByID already maps to a domain error, this check might change.
+		// Also, database/sql should be imported if checking sql.ErrNoRows directly.
+		// For simplicity and consistency with other parts of the code that propagate errors directly:
+		return nil, fmt.Errorf("error fetching timeslot %d: %w", timeslotID, err)
+	}
+
+	// The check `if timeslot == nil` is usually not needed if TRepo.GetByID returns an error (like sql.ErrNoRows) when not found.
+	// If GetByID could return (nil, nil), then this check would be important.
+	// Based on typical repository patterns, err != nil would cover "not found".
+
+	if timeslot.ScheduleID == 0 { // Check if ScheduleID is valid
+		return nil, fmt.Errorf("timeslot %d has an invalid ScheduleID (0)", timeslotID)
+	}
+
+	schedule, err := s.SRepo.GetByID(timeslot.ScheduleID)
+	if err != nil {
+		// Similar error handling considerations as above for SRepo.GetByID
+		return nil, fmt.Errorf("error fetching schedule %d for timeslot %d: %w", timeslot.ScheduleID, timeslotID, err)
+	}
+
+	// Similar to timeslot, if SRepo.GetByID returns an error for "not found", this check might be redundant.
+	// If it can return (nil, nil), then this is needed.
+	if schedule == nil {
+		return nil, fmt.Errorf("schedule %d not found for timeslot %d", timeslot.ScheduleID, timeslotID)
+	}
+
+	return schedule, nil
 }

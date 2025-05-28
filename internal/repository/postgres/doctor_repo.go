@@ -133,7 +133,7 @@ func (r *DoctorRepository) GetAvailableTimeSlots(doctorID int) ([]domain.TimeSlo
 	query := `
 		SELECT t.id, t.schedule_id, t.start_time, t.end_time, t.is_booked, t.created_at
 		FROM timeslots t
-		JOIN schedule s ON t.schedule_id = s.id
+		JOIN schedules s ON t.schedule_id = s.id
 		WHERE s.doctor_id = $1 AND t.is_booked = false
 	`
 	rows, err := r.db.Query(query, doctorID)

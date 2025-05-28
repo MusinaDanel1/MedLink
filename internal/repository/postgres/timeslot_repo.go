@@ -61,3 +61,14 @@ func (r *TimeslotRepository) GenerateSlots(
 	}
 	return nil
 }
+
+func (r *TimeslotRepository) GetByID(id int) (*domain.TimeSlot, error) {
+	var ts domain.TimeSlot
+	q := "SELECT id, schedule_id, start_time, end_time, is_booked, created_at FROM timeslots WHERE id = $1"
+	err := r.db.QueryRow(q, id).Scan(&ts.ID, &ts.ScheduleID, &ts.StartTime, &ts.EndTime, &ts.IsBooked, &ts.CreatedAt)
+	if err != nil {
+		// Consider mapping sql.ErrNoRows to a domain-specific ErrNotFound if that's a pattern in your project
+		return nil, err
+	}
+	return &ts, nil
+}

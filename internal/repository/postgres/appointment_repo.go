@@ -21,8 +21,8 @@ func NewAppointmentRepository(db *sql.DB) *AppointmentRepository {
 func (r *AppointmentRepository) CreateAppointment(app domain.Appointment) (int, error) {
 	var id int
 	err := r.db.QueryRow(
-		"INSERT INTO appointments (patient_id, doctor_id, service_id, timeslot_id) VALUES ($1, $2, $3, $4) RETURNING id",
-		app.PatientID, app.DoctorID, app.ServiceID, app.TimeslotID,
+		"INSERT INTO appointments (patient_id, service_id, timeslot_id) VALUES ($1, $2, $3) RETURNING id",
+		app.PatientID, app.ServiceID, app.TimeslotID,
 	).Scan(&id)
 	return id, err
 }
@@ -33,7 +33,7 @@ func (r *AppointmentRepository) MarkTimeslotAsBooked(timeslotID int) error {
 }
 
 func (r *AppointmentRepository) GetAppointmentByID(id int) (*domain.Appointment, error) {
-	query := `SELECT id, patient_id, doctor_id, service_id, status, timeslot_id, created_at 
+	query := `SELECT id, patient_id, service_id, status, timeslot_id, created_at 
 			  FROM appointments WHERE id = $1`
 	row := r.db.QueryRow(query, id)
 
@@ -41,7 +41,7 @@ func (r *AppointmentRepository) GetAppointmentByID(id int) (*domain.Appointment,
 	err := row.Scan(
 		&appt.ID,
 		&appt.PatientID,
-		&appt.DoctorID,
+		// &appt.DoctorID, // Removed
 		&appt.ServiceID,
 		&appt.Status,
 		&appt.TimeslotID,
@@ -77,7 +77,7 @@ func (r *AppointmentRepository) GetPatientDetailsByID(patientID int) (map[string
 
 	// Get medical history entries
 	historyQuery := `SELECT entry_type, description, event_date
-				FROM medical_history mh
+				FROM medical_histories mh
 				JOIN medical_records mr ON mh.medical_record_id = mr.id
 				WHERE mr.patient_id = $1`
 
@@ -252,7 +252,7 @@ func (r *AppointmentRepository) ListBySchedules(
 	const q = `
 SELECT
   a.id,
-  a.doctor_id,
+  -- a.doctor_id, // Removed
   a.service_id,
   a.timeslot_id,
   a.patient_id,
@@ -285,7 +285,7 @@ WHERE t.schedule_id = ANY($1)
 
 		if err := rows.Scan(
 			&a.ID,
-			&a.DoctorID,
+			// &a.DoctorID, // Removed
 			&a.ServiceID,
 			&a.TimeslotID,
 			&a.PatientID,

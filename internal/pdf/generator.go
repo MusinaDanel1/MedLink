@@ -69,7 +69,7 @@ func (g *Generator) GenerateAppointmentReport(
 	pdf.Cell(0, 6, "Диагноз")
 	pdf.Ln(6)
 	pdf.SetFont("DejaVu", "", 12)
-	pdf.MultiCell(0, 6, details.Diagnosis, "", "", false)
+	pdf.MultiCell(0, 6, details.Diagnosis, "", "", false) // Should now correctly use details.Diagnosis (string)
 
 	pdf.Ln(2)
 	pdf.SetFont("DejaVu", "B", 12)

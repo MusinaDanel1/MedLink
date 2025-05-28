@@ -137,10 +137,15 @@ func (h *BotHandler) handleDoctorSelected(chatID int64, data string) {
 
 	h.temp[chatID]["doctor_id"] = parts[1]
 
+	specIDStr := h.temp[chatID]["spec_id"]
+	specIDVal, err := tryAtoi(specIDStr)
+	if err != nil {
+		log.Printf("Invalid spec_id format: expected integer, got '%s'. Error: %v", specIDStr, err)
+		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "error_occurred")))
+		return
+	}
 	for _, d := range must(
-		h.doctorService.GetDoctorsBySpecialization(
-			mustAtoi(h.temp[chatID]["spec_id"]),
-		),
+		h.doctorService.GetDoctorsBySpecialization(specIDVal),
 	) {
 		if d.ID == docID {
 			h.temp[chatID]["doctor_name"] = d.FullName
@@ -182,10 +187,15 @@ func (h *BotHandler) handleServiceSelected(chatID int64, data string) {
 
 	h.temp[chatID]["service_id"] = parts[1]
 
+	doctorIDStr := h.temp[chatID]["doctor_id"]
+	doctorIDVal, err := tryAtoi(doctorIDStr)
+	if err != nil {
+		log.Printf("Invalid doctor_id format: expected integer, got '%s'. Error: %v", doctorIDStr, err)
+		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "error_occurred")))
+		return
+	}
 	for _, s := range must(
-		h.doctorService.GetServicesByDoctor(
-			mustAtoi(h.temp[chatID]["doctor_id"]),
-		),
+		h.doctorService.GetServicesByDoctor(doctorIDVal),
 	) {
 		if s.ID == servID {
 			h.temp[chatID]["service_name"] = s.Name
@@ -198,7 +208,13 @@ func (h *BotHandler) handleServiceSelected(chatID int64, data string) {
 
 func (h *BotHandler) showAvailableDates(chatID int64) {
 	lang := h.getUserLanguage(chatID)
-	docID := mustAtoi(h.temp[chatID]["doctor_id"])
+	doctorIDStr := h.temp[chatID]["doctor_id"]
+	docID, err := tryAtoi(doctorIDStr)
+	if err != nil {
+		log.Printf("Invalid doctor_id format: expected integer, got '%s'. Error: %v", doctorIDStr, err)
+		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "error_occurred")))
+		return
+	}
 
 	slots, err := h.doctorService.GetAvailableTimeSlots(docID)
 	if err != nil || len(slots) == 0 {
@@ -262,7 +278,13 @@ func (h *BotHandler) handleDateSelected(chatID int64, data string) {
 	}
 	h.temp[chatID]["selected_date"] = selectedDate
 
-	docID := mustAtoi(h.temp[chatID]["doctor_id"])
+	doctorIDStr := h.temp[chatID]["doctor_id"]
+	docID, err := tryAtoi(doctorIDStr)
+	if err != nil {
+		log.Printf("Invalid doctor_id format: expected integer, got '%s'. Error: %v", doctorIDStr, err)
+		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "error_occurred")))
+		return
+	}
 	slots, err := h.doctorService.GetAvailableTimeSlots(docID)
 	if err != nil {
 		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "no_timeslots")))
@@ -458,8 +480,21 @@ func (h *BotHandler) handleBookingConfirm(chatID int64, ok bool) {
 		return
 	}
 
-	docID := mustAtoi(h.temp[chatID]["doctor_id"])
-	tsID := mustAtoi(h.temp[chatID]["timeslot_id"])
+	doctorIDStr := h.temp[chatID]["doctor_id"]
+	docID, err := tryAtoi(doctorIDStr)
+	if err != nil {
+		log.Printf("Invalid doctor_id format: expected integer, got '%s'. Error: %v", doctorIDStr, err)
+		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "error_occurred")))
+		return
+	}
+
+	timeslotIDStr := h.temp[chatID]["timeslot_id"]
+	tsID, err := tryAtoi(timeslotIDStr)
+	if err != nil {
+		log.Printf("Invalid timeslot_id format: expected integer, got '%s'. Error: %v", timeslotIDStr, err)
+		h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "error_occurred")))
+		return
+	}
 
 	// First get the timeslot to access its schedule ID and times
 	slots, err := h.doctorService.GetAvailableTimeSlots(docID)
@@ -517,10 +552,11 @@ func must[T any](v []T, err error) []T {
 	return v
 }
 
-func mustAtoi(s string) int {
+// tryAtoi attempts to convert a string to an int, returning an error instead of panicking.
+func tryAtoi(s string) (int, error) {
 	i, err := strconv.Atoi(s)
 	if err != nil {
-		panic(err)
+		return 0, err // Return 0 and the error if conversion fails
 	}
-	return i
+	return i, nil
 }

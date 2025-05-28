@@ -73,7 +73,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
-	log.Printf("Received iin: %s, password: %s\n", req.IIN, req.Password)
+	log.Printf("Login attempt for iin: %s\n", req.IIN) // Password removed from log
 
 	token, err := h.authService.Login(req.IIN, req.Password, w)
 	if err != nil {

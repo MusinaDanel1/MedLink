@@ -13,7 +13,7 @@ func NewScheduleRepo(db *sql.DB) domain.ScheduleRepository {
 
 func (r *ScheduleRepository) Create(s *domain.Schedule) error {
 	const q = `
-INSERT INTO schedule
+INSERT INTO schedules
   (doctor_id, service_id, start_time, end_time, color, visible)
 VALUES ($1,$2,$3,$4,$5,$6)
 RETURNING id`
@@ -28,7 +28,7 @@ RETURNING id`
 func (r *ScheduleRepository) GetByID(id int) (*domain.Schedule, error) {
 	const q = `
 SELECT id, doctor_id, service_id, start_time, end_time, color, visible
-FROM schedule
+FROM schedules
 WHERE id = $1`
 	var s domain.Schedule
 	if err := r.db.QueryRow(q, id).Scan(
@@ -44,7 +44,7 @@ WHERE id = $1`
 func (r *ScheduleRepository) ListByDoctor(doctorID int) ([]domain.Schedule, error) {
 	const q = `
 SELECT id, doctor_id, service_id, start_time, end_time, color, visible
-FROM schedule WHERE doctor_id = $1`
+FROM schedules WHERE doctor_id = $1`
 	rows, err := r.db.Query(q, doctorID)
 	if err != nil {
 		return nil, err
@@ -67,7 +67,7 @@ FROM schedule WHERE doctor_id = $1`
 
 func (r *ScheduleRepository) ToggleVisible(id int, visible bool) error {
 	_, err := r.db.Exec(
-		`UPDATE schedule SET visible=$2 WHERE id=$1`,
+		`UPDATE schedules SET visible=$2 WHERE id=$1`,
 		id, visible,
 	)
 	return err

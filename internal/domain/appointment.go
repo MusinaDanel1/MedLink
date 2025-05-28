@@ -4,7 +4,6 @@ import "time"
 
 type Appointment struct {
 	ID         int       `json:"id"`
-	DoctorID   int       `json:"doctorId"`
 	ServiceID  int       `json:"serviceId"`
 	TimeslotID int       `json:"timeslotId"`
 	PatientID  int       `json:"patientId"`
@@ -35,11 +34,11 @@ type TimeSlot struct {
 }
 
 type AppointmentDetails struct {
-	AppointmentID int
-	Complaints    string
-	Diagnosis     string
-	Assignment    string
-	Prescriptions []Prescription
+	AppointmentID int            `json:"appointmentId"`
+	Complaints    string         `json:"complaints"`
+	Diagnosis     string         `json:"diagnosis"`
+	Assignment    string         `json:"assignment"`
+	Prescriptions []Prescription `json:"prescriptions"`
 }
 
 type Prescription struct {
@@ -55,6 +54,17 @@ type NotificationData struct {
 	ServiceName   string
 	StartTime     time.Time
 	Language      string
+}
+
+type CompleteAppointmentRequest struct {
+	Complaints    string `json:"complaints"`
+	Diagnosis     string `json:"diagnosis"`
+	Assignment    string `json:"assignment"`
+	Prescriptions []struct {
+		Med      string `json:"med"`
+		Dose     string `json:"dose"`
+		Schedule string `json:"schedule"`
+	} `json:"prescriptions"`
 }
 
 type AppointmentRepository interface {
@@ -80,4 +90,5 @@ type TimeslotRepository interface {
 	GetOrCreate(scheduleID int, start, end time.Time) (*TimeSlot, error)
 	MarkBooked(id int, booked bool) error
 	GenerateSlots(scheduleID int, start, end time.Time, step time.Duration) error
+	GetByID(id int) (*TimeSlot, error)
 }
