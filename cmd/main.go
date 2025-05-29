@@ -4,8 +4,10 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -38,7 +40,6 @@ func main() {
 		log.Fatal("DATABASE_URL must be set in environment")
 	}
 
-	// 2) Подключаемся к БД
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
@@ -70,12 +71,10 @@ func main() {
 		log.Fatal("Ошибка при вставке врача:", err)
 	}
 
-	// Add sample services for the doctor
 	var doctorID int
 	err = db.QueryRow("SELECT id FROM doctors WHERE full_name = $1", "Марина Цветаева").Scan(&doctorID)
 	if err != nil {
 		log.Printf("Failed to find doctor 'Марина Цветаева': %v", err)
-		// Let's create the doctor if not found
 		if err == sql.ErrNoRows {
 			log.Printf("Creating doctor 'Марина Цветаева'...")
 			_, err = db.Exec(
@@ -85,7 +84,6 @@ func main() {
 			if err != nil {
 				log.Printf("Failed to create doctor: %v", err)
 			} else {
-				// Try again to get the ID
 				err = db.QueryRow("SELECT id FROM doctors WHERE full_name = $1", "Марина Цветаева").Scan(&doctorID)
 				if err != nil {
 					log.Printf("Still couldn't get doctor ID: %v", err)
@@ -99,7 +97,6 @@ func main() {
 	if doctorID > 0 {
 		log.Printf("Found doctor with ID: %d", doctorID)
 
-		// Check existing services first
 		rows, err := db.Query("SELECT id, name FROM services WHERE doctor_id = $1", doctorID)
 		if err != nil {
 			log.Printf("Error checking existing services: %v", err)
@@ -127,7 +124,6 @@ func main() {
 		                 VALUES ($1, $2)
 		                 ON CONFLICT (doctor_id, name) DO NOTHING`
 
-		// Add some sample services for this doctor
 		services := []string{
 			"Консультация",
 			"Осмотр",
@@ -154,6 +150,94 @@ func main() {
 
 	fmt.Println("Админ и врач успешно добавлены в базу данных!")
 
+	// --- BEGIN New User Seeding Logic ---
+	log.Println("Starting new user seeding...")
+
+	randAlphanum := func(length int) string {
+		const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+		seededRand := rand.New(rand.NewSource(time.Now().UnixNano())) // Ensure new seed each call for variety in quick succession
+		b := make([]byte, length)
+		for i := range b {
+			b[i] = charset[seededRand.Intn(len(charset))]
+		}
+		return string(b)
+	}
+
+	allDoctorNamesForUserSeeding := []string{
+		"Марина Цветаева",
+		"Айгуль Омарова",
+		"Жанат Мусаев",
+		"Григорьев Максим Валерьевич",
+		"Фёдорова Алина Романовна",
+		"Степанов Арсений Кириллович",
+		"Беляева София Львовна",
+		"Андреев Даниил Артёмович",
+		"Виноградова Полина Глебовна",
+		"Богданов Марк Денисович",
+		"Комарова Ева Ярославовна",
+		"Киселёв Лев Игоревич",
+		"Абрамова Милана Эмировна",
+		"Тихонов Руслан Альбертович",
+		"Мельникова Вероника Макаровна",
+		"Щербаков Глеб Робертович",
+		"Кузьмина Ульяна Давидовна",
+	}
+
+	var iinCounter int64 = 100000000000
+
+	userInsertQuery := `INSERT INTO users (iin, password_hash, full_name, role) 
+	                    VALUES ($1, $2, $3, $4)
+	                    ON CONFLICT (iin) DO NOTHING`
+
+	log.Println("Seeding new doctor users...")
+	for _, name := range allDoctorNamesForUserSeeding {
+		var currentIIN string
+		if name == "Марина Цветаева" {
+			currentIIN = "040831650398"
+		} else {
+			currentIIN = fmt.Sprintf("%012d", iinCounter)
+			iinCounter++
+		}
+
+		newPassword := randAlphanum(12)
+		newHashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+		if err != nil {
+			log.Printf("Error hashing password for doctor %s: %v", name, err)
+			continue
+		}
+
+		_, err = db.Exec(userInsertQuery, currentIIN, string(newHashedPassword), name, "doctor")
+		if err != nil {
+			log.Printf("Error inserting/verifying doctor user %s (IIN: %s): %v", name, currentIIN, err)
+		} else {
+			log.Printf("User entry for doctor %s (IIN: %s) processed.", name, currentIIN)
+		}
+	}
+
+	log.Println("Seeding new admin users...")
+	for i := 1; i <= 3; i++ {
+		adminFullName := fmt.Sprintf("Admin User %d", i)
+		newIIN := fmt.Sprintf("%012d", iinCounter)
+		iinCounter++
+
+		newPassword := randAlphanum(12)
+		newHashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+		if err != nil {
+			log.Printf("Error hashing password for admin %s: %v", adminFullName, err)
+			continue
+		}
+
+		_, err = db.Exec(userInsertQuery, newIIN, string(newHashedPassword), adminFullName, "admin")
+		if err != nil {
+			log.Printf("Error inserting admin user %s (IIN: %s): %v", adminFullName, newIIN, err)
+		} else {
+			log.Printf("Admin user %s (IIN: %s) processed.", adminFullName, newIIN)
+		}
+	}
+
+	log.Println("Finished new user seeding.")
+	// --- END New User Seeding Logic ---
+
 	// Initialize repositories
 	authRepo := postgres.NewAuthRepository(db)
 	adminRepo := postgres.NewAdminRepository(db)
@@ -163,7 +247,6 @@ func main() {
 	msgRepo := postgres.NewMessageRepository(db)
 	scheduleRepo := postgres.NewScheduleRepo(db)
 	timeslotRepo := postgres.NewTimeslotRepo(db)
-	schedRepo := postgres.NewScheduleRepo(db)
 	videoRepo := postgres.NewVideoSessionRepository(db)
 
 	// Initialize services
@@ -175,7 +258,7 @@ func main() {
 	appointmentService := usecase.NewAppointmentService(appointmentRepo, scheduleRepo, timeslotRepo, videoSvc)
 	msgService := usecase.NewMessageService(msgRepo)
 	openaiService := usecase.New(openaiKey)
-	schedSvc := usecase.NewScheduleService(schedRepo)
+	schedSvc := usecase.NewScheduleService(scheduleRepo)
 
 	// Initialize handlers
 	authHandler := http1.NewAuthHandler(authService)
@@ -198,19 +281,15 @@ func main() {
 		bot.Debug = true
 		log.Printf("Запущен бот: %s", bot.Self.UserName)
 
-		// Создаем bot handler БЕЗ notification service (пока nil)
 		botHandler = telegram.NewBotHandler(bot, patientService, doctorService, appointmentService, nil, openaiService)
 
-		// ТЕПЕРЬ создаем notification service с bot handler
 		notificationService = usecase.NewNotificationService(
 			appointmentRepo,
 			patientRepo,
 			botHandler,
 		)
 
-		// 3) Инъектим notificationService в botHandler
 		botHandler.SetNotificationService(notificationService)
-		// Запускаем планировщик уведомлений
 		notificationService.StartNotificationScheduler()
 	}
 
@@ -218,7 +297,6 @@ func main() {
 	apptHandler := http1.NewAppointmentHandler(appointmentService, doctorService)
 	apptHandler.SetBotHandler(botHandler)
 
-	// Run bot updates handling in a separate goroutine
 	if bot != nil {
 		u := tgbotapi.NewUpdate(0)
 		u.Timeout = 60
@@ -231,66 +309,17 @@ func main() {
 		}()
 	}
 
-	// Auth routes
-	mux := http.NewServeMux()
-	mux.HandleFunc("/main", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
-			authHandler.ShowMainForm(w, r)
-			return
-		}
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-	})
-	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
-			authHandler.ShowLoginForm(w, r)
-			return
-		}
-		if r.Method == http.MethodPost {
-			authHandler.Login(w, r)
-			return
-		}
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-	})
-
-	// Protected routes
-	protectedHandler := http1.AuthMiddleware(http.HandlerFunc(authHandler.ProtectedRoute))
-	mux.Handle("/protected", protectedHandler)
-
-	// Admin routes
-	adminMiddleware := http1.AuthMiddleware
-	mux.Handle("/admin-dashboard", adminMiddleware(http.HandlerFunc(authHandler.AdminDashboard)))
-	mux.Handle("/admin/register", adminMiddleware(http.HandlerFunc(adminHandler.RegisterUser)))
-	mux.Handle("/admin/block", adminMiddleware(http.HandlerFunc(adminHandler.BlockUser)))
-	mux.Handle("/admin/unblock", adminMiddleware(http.HandlerFunc(adminHandler.UnblockUser)))
-	mux.Handle("/admin/delete", adminMiddleware(http.HandlerFunc(adminHandler.DeleteUser)))
-	mux.Handle("/admin/users", adminMiddleware(http.HandlerFunc(adminHandler.GetAllUsers)))
-	mux.Handle("/admin/specializations", adminMiddleware(http.HandlerFunc(adminHandler.GetSpecializations)))
-
-	// Doctor routes
-	mux.Handle("/doctor-dashboard", http1.AuthMiddleware(http.HandlerFunc(authHandler.DoctorDashboard)))
-
-	// Static files
-	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("templates"))))
-
 	r := gin.Default()
-	// Set trusted proxy to localhost and private IPs
 	r.SetTrustedProxies([]string{"127.0.0.1", "192.168.0.0/16", "10.0.0.0/8"})
 
-	// 2) WebSocket-сигналинг для вашего video.SignalingHandler
 	r.GET("/ws", video.SignalingHandler)
 
-	// 3) Статика
-	//    Ваши CSS/JS лежат в templates/static/{css,js}
 	r.Static("/static", "./templates/static")
 
-	// 4) Страница WebRTC-рума
-	//    URL: /webrtc/room.html?appointment_id=42&role=doctor
 	r.StaticFile("/webrtc/room.html", "./templates/appointment.html")
 
-	// 5) Отладочная страница, если нужна
 	r.StaticFile("/debug.html", "./templates/debug.html")
 
-	// Add login routes to Gin server
 	r.GET("/login", func(c *gin.Context) {
 		authHandler.ShowLoginForm(c.Writer, c.Request)
 	})
@@ -336,7 +365,7 @@ func main() {
 	r.PUT("/api/appointments/:id/details", apptHandler.CompleteAppointment)
 	r.POST("/api/appointments/:id/complete", apptHandler.CompleteAppointment)
 	r.PUT("/api/appointments/:id/accept", apptHandler.AcceptAppointment)
-	r.GET("/api/appointments/:id/status", apptHandler.GetAppointmentStatus) // Добавлен /api/appointments + правильный хендлер
+	r.GET("/api/appointments/:id/status", apptHandler.GetAppointmentStatus)
 	r.PUT("/api/appointments/:id/end-call", apptHandler.EndCall)
 	r.POST("/api/appointments", apptHandler.BookAppointment)
 	r.GET("/api/appointments", apptHandler.ListBySchedules)
@@ -354,11 +383,4 @@ func main() {
 	if err := r.Run(":8080"); err != nil {
 		log.Fatal(err)
 	}
-
-	// This code is now unreachable since we're running everything on the Gin server
-	// port := "8081" // Changed from 8080 to 8081
-	// log.Printf("HTTP Server starting at http://localhost:%s", port)
-	// if err := http.ListenAndServe(":"+port, mux); err != nil {
-	// 	log.Fatal(err)
-	// }
 }
