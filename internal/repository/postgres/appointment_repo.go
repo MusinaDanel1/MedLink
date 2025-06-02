@@ -361,7 +361,7 @@ func (r *AppointmentRepository) GetUpcomingAppointments(from, to time.Time) ([]d
 			d.full_name as doctor_name,
 			s.name as service_name,
 			t.start_time,
-			COALESCE(p.language, 'ru') as language
+			'ru'::TEXT AS language -- Fixed: p.language does not exist
 		FROM appointments a
 		JOIN patients p ON a.patient_id = p.id
 		JOIN timeslots t ON a.timeslot_id = t.id

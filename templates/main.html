@@ -14,6 +14,14 @@
     href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Roboto:wght@400;500&display=swap"
     rel="stylesheet"
   />
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css"
+    rel="stylesheet"
+  />
   <style>
     :root {
       --primary: #4c6ef5;
@@ -171,25 +179,39 @@
       border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
+    #platform .section-title {
+      margin-top: 2.5rem;
+      margin-bottom: 1rem;
+    }
+    #platform p {
+      max-width: 600px;
+      margin: 0 auto 1.5rem;
+    }
 
     /* FEATURES */
     .features-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      grid-auto-rows: 1fr;
       gap: 2rem;
+      align-items: start;
       margin-top: 2rem;
     }
     .feature-card {
       background: var(--card);
       border-radius: 8px;
-      padding: 2rem;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      box-shadow: var(--shadow-md);
+      transition: transform var(--transition),
+                  box-shadow var(--transition);
       text-align: center;
-      transition: transform 0.3s, box-shadow 0.3s;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      height: 100%;
     }
     .feature-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+      transform: translateY(-6px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
     }
     .feature-card .icon {
       font-size: 3rem;
@@ -201,9 +223,13 @@
       font-size: 1.5rem;
       margin-bottom: 1rem;
     }
+    .features-grid .feature-card {
+      padding: 2rem 1.5rem;
+    }
     .feature-card ul {
+      display: inline-block;
       text-align: left;
-      margin: 0;
+      margin: 1rem auto 0;
       padding: 0;
     }
     .feature-card li {
@@ -236,21 +262,34 @@
       margin-bottom: 1rem;
     }
 
-    /* CTA */
-    .cta {
-      background: var(--primary);
-      color: #fff;
-      text-align: center;
-      padding: 4rem 2rem;
-      border-radius: 8px;
-      margin: 2rem 0;
+    /* footer */
+    footer {
+      font-size: 0.875rem;
     }
-    .cta h2 {
+    footer h6 {
       font-family: 'Poppins', sans-serif;
-      font-size: 2rem;
-      margin-bottom: 1.5rem;
+      font-size: 1rem;
+      margin-bottom: 1 rem;
     }
-
+    .footer-link {
+      color: var(--light);
+      transition: color var(--transition);
+    }
+    .footer-link:hover {
+      color: var(--primary);
+    }
+    .footer-social a {
+      margin-right: 1rem;
+      color: var(--light);
+      transition: color var(--transition), tranform var(--transition);
+    }
+    .footer-social a:last-child {
+      margin-right: 0;
+    }
+    .footer-social a:hover {
+      color: var(--primary);
+      transform: translateY(-3px);
+    }
     /* SCROLL ANIMATIONS */
     .scroll-animate {
       opacity: 0;
@@ -275,6 +314,11 @@
       .hero-content p {
         font-size: 1rem;
       }
+    }
+    #platform p.text-muted {
+      max-width: none;
+      margin-bottom: 1.5rem;
+      text-align: justify;
     }
   </style>
 </head>
@@ -311,20 +355,50 @@
     </div>
   </header>
 
-  <!-- О СИСТЕМЕ -->
-  <section id="platform" class="section scroll-animate">
-    <div class="container platform-grid">
-      <div>
-        <h2>О платформе</h2>
-        <p>
-          MedLink — современная платформа для организации 
-          безопасных дистанционных консультаций между пациентами
-          и врачами. Запись, напоминания, видеосвязь и официальные
-          отчеты в PDF доступны прямо в вашем Telegram.
-        </p>
+  <!-- О ПЛАТФОРМЕ (для врачей) -->
+<section id="platform" class="py-5 scroll-animate">
+  <div class="container text-center">
+    <h2 class="section-title mb-3">О платформе</h2>
+    <p class="text-muted mb-5">
+      MedLink создана, чтобы перевести приём пациентов в полностью цифровой формат:
+      от автоматизированной записи через Telegram-бота до ведения истории болезни
+      и управлением расписанием в едином веб-кабинете.
+    </p>
+    <div class="row g-4 justify-content-center">
+      <div class="col-md-4">
+        <div class="feature-card px-4 py-5 h-100">
+          <i class="bi bi-calendar-event-fill text-primary fs-1 mb-3"></i>
+          <h5 class="mb-2">Управление расписанием</h5>
+          <p class="small text-muted">
+            Гибко настраивайте свой график приёмов,
+            блокируйте перерывы и будьте доступны только тогда,
+            когда удобно вам.
+          </p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="feature-card px-4 py-5 h-100">
+          <i class="bi bi-camera-reels-fill text-primary fs-1 mb-3"></i>
+          <h5 class="mb-2">Видеокабинет</h5>
+          <p class="small text-muted">
+            Проводите защищённые видеоприёмы без 
+            сторонних сервисов и установки дополнительного ПО.
+          </p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="feature-card px-4 py-5 h-100">
+          <i class="bi bi-file-earmark-pdf-fill text-primary fs-1 mb-3"></i>
+          <h5 class="mb-2">PDF-отчёты</h5>
+          <p class="small text-muted">
+            Автоматически формируйте и отправляйте пациентам
+            официальные заключения и рецепты в PDF.
+          </p>
+        </div>
       </div>
     </div>
-  </section>
+  </div>
+</section>
 
   <!-- ФУНКЦИИ -->
   <section id="features" class="section scroll-animate">
@@ -332,7 +406,7 @@
       <h2>Функции</h2>
       <div class="features-grid">
         <div class="feature-card">
-          <div class="icon">🧑‍⚕️</div>
+          <div class="icon">🧑‍💼</div>
           <h3>Пациентам</h3>
           <ul>
             <li>Запись через Telegram-бот</li>
@@ -383,13 +457,48 @@
     </div>
   </section>
 
-  <!-- CTA -->
-  <section class="cta scroll-animate">
-    <div class="container cta-content">
-      <h2>Готовы записаться?</h2>
-      <a href="https://t.me/VirtualPolyclinicBot" class="btn btn-primary btn-large">Записаться</a>
+  <!-- Footer -->
+  <footer class="bg-dark text-light pt-5 pb-3">
+  <div class="container">
+    <div class="row gy-4">
+      <div class="col-md-3">
+        <h6 class="text-uppercase mb-3">MedLink</h6>
+        <p class="small">
+          Платформа для дистанционных консультаций пациентов  
+          и врачей.
+        </p>
+      </div>
+      <div class="col-md-3">
+        <h6 class="text-uppercase mb-3">Быстрые ссылки</h6>
+        <ul class="list-unstyled small">
+          <li><a href="#services" class="footer-link">Услуги</a></li>
+          <li><a href="#how" class="footer-link">Как это работает</a></li>
+          <li><a href="#team" class="footer-link">Команда</a></li>
+          <li><a href="#contact" class="footer-link">Контакты</a></li>
+        </ul>
+      </div>
+      <div class="col-md-3">
+        <h6 class="text-uppercase mb-3">Контакты</h6>
+        <ul class="list-unstyled small">
+          <li><i class="bi bi-telephone-fill me-2"></i>+7 (800) 123-45-67</li>
+          <li><i class="bi bi-envelope-fill me-2"></i>support@medlink.ru</li>
+          <li><i class="bi bi-geo-alt-fill me-2"></i>Астана, пр-т. Мангилик Ел. 51/3</li>
+        </ul>
+      </div>
+      <div class="col-md-3">
+        <h6 class="text-uppercase mb-3">Мы в соцсетях</h6>
+        <div class="footer-social">
+          <a href="#" aria-label="Telegram"><i class="bi bi-telegram fs-4"></i></a>
+          <a href="#" aria-label="VK"><i class="bi bi-vk fs-4"></i></a>
+          <a href="#" aria-label="Instagram"><i class="bi bi-instagram fs-4"></i></a>
+        </div>
+      </div>
     </div>
-  </section>
+    <div class="text-center pt-4 mt-3 border-top border-secondary small">
+      © 2025 MedLink. Все права защищены.
+    </div>
+  </div>
+</footer>
 
   <script>
     // плавная анимация при скролле

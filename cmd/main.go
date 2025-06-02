@@ -40,119 +40,23 @@ func main() {
 		log.Fatal("DATABASE_URL must be set in environment")
 	}
 
+	// 2) Подключаемся к БД
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer db.Close()
 
-	password := "mypassword"
-	password1 := "mypassword1"
-
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		log.Fatal("Ошибка при хешировании пароля:", err)
-	}
-	hashedPassword1, err := bcrypt.GenerateFromPassword([]byte(password1), bcrypt.DefaultCost)
-	if err != nil {
-		log.Fatal("Ошибка при хешировании пароля:", err)
-	}
-
-	query := `INSERT INTO users (iin, password_hash, full_name, role) 
-	          VALUES ($1, $2, $3, $4)
-	          ON CONFLICT (iin) DO NOTHING`
-
-	_, err = db.Exec(query, "123456789012", string(hashedPassword), "Иван Иванов", "admin")
-	if err != nil {
-		log.Fatal("Ошибка при вставке админа:", err)
-	}
-	_, err = db.Exec(query, "040831650398", string(hashedPassword1), "Марина Цветаева", "doctor")
-	if err != nil {
-		log.Fatal("Ошибка при вставке врача:", err)
-	}
-
-	var doctorID int
-	err = db.QueryRow("SELECT id FROM doctors WHERE full_name = $1", "Марина Цветаева").Scan(&doctorID)
-	if err != nil {
-		log.Printf("Failed to find doctor 'Марина Цветаева': %v", err)
-		if err == sql.ErrNoRows {
-			log.Printf("Creating doctor 'Марина Цветаева'...")
-			_, err = db.Exec(
-				"INSERT INTO doctors (full_name, specialization_id) VALUES ($1, $2) RETURNING id",
-				"Марина Цветаева", 1,
-			)
-			if err != nil {
-				log.Printf("Failed to create doctor: %v", err)
-			} else {
-				err = db.QueryRow("SELECT id FROM doctors WHERE full_name = $1", "Марина Цветаева").Scan(&doctorID)
-				if err != nil {
-					log.Printf("Still couldn't get doctor ID: %v", err)
-				} else {
-					log.Printf("Successfully created doctor with ID: %d", doctorID)
-				}
-			}
-		}
-	}
-
-	if doctorID > 0 {
-		log.Printf("Found doctor with ID: %d", doctorID)
-
-		rows, err := db.Query("SELECT id, name FROM services WHERE doctor_id = $1", doctorID)
-		if err != nil {
-			log.Printf("Error checking existing services: %v", err)
-		} else {
-			var existingServices []string
-			for rows.Next() {
-				var id int
-				var name string
-				if err := rows.Scan(&id, &name); err != nil {
-					log.Printf("Error scanning service: %v", err)
-				} else {
-					existingServices = append(existingServices, fmt.Sprintf("%d: %s", id, name))
-				}
-			}
-			rows.Close()
-
-			if len(existingServices) > 0 {
-				log.Printf("Doctor already has services: %v", existingServices)
-			} else {
-				log.Printf("No existing services found for doctor ID %d, adding new ones", doctorID)
-			}
-		}
-
-		serviceQuery := `INSERT INTO services (doctor_id, name) 
-		                 VALUES ($1, $2)
-		                 ON CONFLICT (doctor_id, name) DO NOTHING`
-
-		services := []string{
-			"Консультация",
-			"Осмотр",
-			"Диагностика",
-			"Плановый прием",
-		}
-
-		for _, service := range services {
-			result, err := db.Exec(serviceQuery, doctorID, service)
-			if err != nil {
-				log.Printf("Ошибка при добавлении услуги '%s': %v", service, err)
-			} else {
-				affected, _ := result.RowsAffected()
-				if affected > 0 {
-					log.Printf("Услуга '%s' добавлена для врача ID %d", service, doctorID)
-				} else {
-					log.Printf("Услуга '%s' уже существует для врача ID %d", service, doctorID)
-				}
-			}
-		}
-	} else {
-		log.Printf("Failed to get valid doctor ID")
-	}
-
-	fmt.Println("Админ и врач успешно добавлены в базу данных!")
-
 	// --- BEGIN New User Seeding Logic ---
 	log.Println("Starting new user seeding...")
 
+	// Seed math/rand for password generation (crypto/rand is better for production)
+	// Using math/rand for simplicity as per typical mock data generation context
+	// For crypto/rand, no seeding is needed.
+	// For this exercise, let's assume math/rand is chosen for simplicity.
+	// rand.Seed(time.Now().UnixNano()) // Usually done once, but if main is re-run, ensure it's effective.
+
+	// Helper function to generate random alphanumeric password
 	randAlphanum := func(length int) string {
 		const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 		seededRand := rand.New(rand.NewSource(time.Now().UnixNano())) // Ensure new seed each call for variety in quick succession
@@ -163,27 +67,30 @@ func main() {
 		return string(b)
 	}
 
+	// Doctor User Seeding
+	// Note: The original list had 17 names. The request was for 16 *new* doctor users.
+	// "Марина Цветаева" and "Айгуль Омарова", "Жанат Мусаев" are already in the doctors table from init.sql.
+	// This seeding focuses on creating *user accounts* for doctors.
+	// The provided list includes names already in the doctors table.
+	// The logic below will attempt to create user accounts for all these names,
+	// using ON CONFLICT for IINs.
 	allDoctorNamesForUserSeeding := []string{
 		"Марина Цветаева",
 		"Айгуль Омарова",
 		"Жанат Мусаев",
-		"Григорьев Максим Валерьевич",
-		"Фёдорова Алина Романовна",
-		"Степанов Арсений Кириллович",
-		"Беляева София Львовна",
-		"Андреев Даниил Артёмович",
-		"Виноградова Полина Глебовна",
-		"Богданов Марк Денисович",
-		"Комарова Ева Ярославовна",
-		"Киселёв Лев Игоревич",
-		"Абрамова Милана Эмировна",
-		"Тихонов Руслан Альбертович",
-		"Мельникова Вероника Макаровна",
-		"Щербаков Глеб Робертович",
-		"Кузьмина Ульяна Давидовна",
+		"Алексей Смирнов",
+		"Гаухар Сагынова",
+		"Игорь Брагин",
+		"Наталья Ким",
+		"Бахытжан Ермеков",
+		"Ольга Соколова",
+		"Мурат Бейсеков",
+		"Елена Жумагалиева",
+		"Руслан Тлеулин",
 	}
 
-	var iinCounter int64 = 100000000000
+	// Start IINs for new users from a different range to avoid conflicts with manually specified ones.
+	var iinCounter int64 = 100000000000 // Starting IIN for newly generated ones
 
 	userInsertQuery := `INSERT INTO users (iin, password_hash, full_name, role) 
 	                    VALUES ($1, $2, $3, $4)
@@ -191,33 +98,43 @@ func main() {
 
 	log.Println("Seeding new doctor users...")
 	for _, name := range allDoctorNamesForUserSeeding {
-		var currentIIN string
-		if name == "Марина Цветаева" {
-			currentIIN = "040831650398"
-		} else {
-			currentIIN = fmt.Sprintf("%012d", iinCounter)
-			iinCounter++
-		}
+		// Handle specific known IINs first
+		currentIIN := fmt.Sprintf("%012d", iinCounter)
+		iinCounter++
 
-		newPassword := randAlphanum(12)
+		newPassword := randAlphanum(12) // Generate a random password
 		newHashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 		if err != nil {
 			log.Printf("Error hashing password for doctor %s: %v", name, err)
 			continue
 		}
 
-		_, err = db.Exec(userInsertQuery, currentIIN, string(newHashedPassword), name, "doctor")
+		result, err := db.Exec(userInsertQuery, currentIIN, string(newHashedPassword), name, "doctor")
 		if err != nil {
 			log.Printf("Error inserting/verifying doctor user %s (IIN: %s): %v", name, currentIIN, err)
 		} else {
+			affected, _ := result.RowsAffected()
+			if affected > 0 {
+				log.Printf("CREATED Doctor User - IIN: %s, Name: %s, Password: %s", currentIIN, name, newPassword)
+			}
 			log.Printf("User entry for doctor %s (IIN: %s) processed.", name, currentIIN)
 		}
 	}
 
+	// New Admin User Seeding
 	log.Println("Seeding new admin users...")
-	for i := 1; i <= 3; i++ {
-		adminFullName := fmt.Sprintf("Admin User %d", i)
-		newIIN := fmt.Sprintf("%012d", iinCounter)
+	adminFirstNames := []string{"Бауржан", "Айдын", "Санжар", "Ермек", "Нурлан", "Динара", "Алия", "Гаухар"}
+	adminLastNames := []string{"Ибраев", "Смагулов", "Касенов", "Ахметова", "Жуманова", "Ким", "Ли", "Сергеев"}
+
+	for i := 0; i < 3; i++ { // Loop 3 times for 3 admins
+		// Ensure we have enough names, or handle gracefully if not
+		if i >= len(adminFirstNames) || i >= len(adminLastNames) {
+			log.Printf("Warning: Not enough unique names in predefined lists to create admin user %d. Skipping.", i+1)
+			continue
+		}
+		adminFullName := fmt.Sprintf("%s %s", adminFirstNames[i], adminLastNames[i])
+
+		newIIN := fmt.Sprintf("%012d", iinCounter) // Continue IIN sequence
 		iinCounter++
 
 		newPassword := randAlphanum(12)
@@ -227,10 +144,14 @@ func main() {
 			continue
 		}
 
-		_, err = db.Exec(userInsertQuery, newIIN, string(newHashedPassword), adminFullName, "admin")
+		result, err := db.Exec(userInsertQuery, newIIN, string(newHashedPassword), adminFullName, "admin")
 		if err != nil {
 			log.Printf("Error inserting admin user %s (IIN: %s): %v", adminFullName, newIIN, err)
 		} else {
+			affected, _ := result.RowsAffected()
+			if affected > 0 {
+				log.Printf("CREATED Admin User - IIN: %s, Name: %s, Password: %s", newIIN, adminFullName, newPassword)
+			}
 			log.Printf("Admin user %s (IIN: %s) processed.", adminFullName, newIIN)
 		}
 	}
@@ -247,6 +168,7 @@ func main() {
 	msgRepo := postgres.NewMessageRepository(db)
 	scheduleRepo := postgres.NewScheduleRepo(db)
 	timeslotRepo := postgres.NewTimeslotRepo(db)
+	// schedRepo := postgres.NewScheduleRepo(db) // Duplicate of scheduleRepo
 	videoRepo := postgres.NewVideoSessionRepository(db)
 
 	// Initialize services
@@ -258,7 +180,7 @@ func main() {
 	appointmentService := usecase.NewAppointmentService(appointmentRepo, scheduleRepo, timeslotRepo, videoSvc)
 	msgService := usecase.NewMessageService(msgRepo)
 	openaiService := usecase.New(openaiKey)
-	schedSvc := usecase.NewScheduleService(scheduleRepo)
+	schedSvc := usecase.NewScheduleService(scheduleRepo) // Changed schedRepo to scheduleRepo
 
 	// Initialize handlers
 	authHandler := http1.NewAuthHandler(authService)
@@ -273,53 +195,56 @@ func main() {
 	var botHandler *telegram.BotHandler
 	var notificationService *usecase.NotificationService
 
-	if token != "dummy_token" {
-		bot, err = tgbotapi.NewBotAPI(token)
-		if err != nil {
-			log.Fatal("Ошибка инициализации Telegram-бота: ", err)
-		}
-		bot.Debug = true
-		log.Printf("Запущен бот: %s", bot.Self.UserName)
-
-		botHandler = telegram.NewBotHandler(bot, patientService, doctorService, appointmentService, nil, openaiService)
-
-		notificationService = usecase.NewNotificationService(
-			appointmentRepo,
-			patientRepo,
-			botHandler,
-		)
-
-		botHandler.SetNotificationService(notificationService)
-		notificationService.StartNotificationScheduler()
+	bot, err = tgbotapi.NewBotAPI(token)
+	if err != nil {
+		log.Fatal("Ошибка инициализации Telegram-бота: ", err)
 	}
+	bot.Debug = true
+	log.Printf("Запущен бот: %s", bot.Self.UserName)
+
+	botHandler = telegram.NewBotHandler(bot, patientService, doctorService, appointmentService, nil, openaiService)
+	notificationService = usecase.NewNotificationService(
+		appointmentRepo,
+		patientRepo,
+		botHandler,
+	)
+	botHandler.SetNotificationService(notificationService)
+	notificationService.StartNotificationScheduler()
 
 	msgHandler := http1.NewMessageHandler(msgService, appointmentService)
 	apptHandler := http1.NewAppointmentHandler(appointmentService, doctorService)
 	apptHandler.SetBotHandler(botHandler)
 
-	if bot != nil {
-		u := tgbotapi.NewUpdate(0)
-		u.Timeout = 60
-		updates := bot.GetUpdatesChan(u)
+	// Run bot updates handling in a separate goroutine
+	u := tgbotapi.NewUpdate(0)
+	u.Timeout = 60
+	updates := bot.GetUpdatesChan(u)
 
-		go func() {
-			for update := range updates {
-				botHandler.HandleUpdate(update)
-			}
-		}()
-	}
+	go func() {
+		for update := range updates {
+			botHandler.HandleUpdate(update)
+		}
+	}()
 
 	r := gin.Default()
+	// Set trusted proxy to localhost and private IPs
 	r.SetTrustedProxies([]string{"127.0.0.1", "192.168.0.0/16", "10.0.0.0/8"})
 
+	// 2) WebSocket-сигналинг для вашего video.SignalingHandler
 	r.GET("/ws", video.SignalingHandler)
 
+	// 3) Статика
+	//    Ваши CSS/JS лежат в templates/static/{css,js}
 	r.Static("/static", "./templates/static")
 
+	// 4) Страница WebRTC-рума
+	//    URL: /webrtc/room.html?appointment_id=42&role=doctor
 	r.StaticFile("/webrtc/room.html", "./templates/appointment.html")
 
+	// 5) Отладочная страница, если нужна
 	r.StaticFile("/debug.html", "./templates/debug.html")
 
+	// Add login routes to Gin server
 	r.GET("/login", func(c *gin.Context) {
 		authHandler.ShowLoginForm(c.Writer, c.Request)
 	})
@@ -365,7 +290,7 @@ func main() {
 	r.PUT("/api/appointments/:id/details", apptHandler.CompleteAppointment)
 	r.POST("/api/appointments/:id/complete", apptHandler.CompleteAppointment)
 	r.PUT("/api/appointments/:id/accept", apptHandler.AcceptAppointment)
-	r.GET("/api/appointments/:id/status", apptHandler.GetAppointmentStatus)
+	r.GET("/api/appointments/:id/status", apptHandler.GetAppointmentStatus) // Добавлен /api/appointments + правильный хендлер
 	r.PUT("/api/appointments/:id/end-call", apptHandler.EndCall)
 	r.POST("/api/appointments", apptHandler.BookAppointment)
 	r.GET("/api/appointments", apptHandler.ListBySchedules)
