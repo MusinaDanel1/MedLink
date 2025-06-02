@@ -43,7 +43,7 @@ func (ns *NotificationService) StartNotificationScheduler() {
 }
 
 func (ns *NotificationService) checkAndSendNotifications() {
-	now := time.Now().UTC()
+	now := time.Now()
 	log.Printf("Checking notifications at: %v", now)
 
 	appointments, err := ns.appointmentRepo.GetUpcomingAppointments(now, now.Add(25*time.Hour))
