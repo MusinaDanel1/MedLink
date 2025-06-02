@@ -205,7 +205,8 @@ func (h *AppointmentHandler) CompleteAppointment(c *gin.Context) {
 			return
 		}
 		// Асинхронно шлём отчёт
-		go h.botHandler.SendReport(tgID, pdfBytes, apptID)
+		patientName := patientMap["full_name"].(string)
+		go h.botHandler.SendReport(tgID, pdfBytes, apptID, patientName)
 	}
 
 	c.JSON(200, gin.H{"success": true})

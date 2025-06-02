@@ -199,9 +199,9 @@ func (h *BotHandler) startRegistration(chatID int64) {
 	h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "registration_required")))
 }
 
-func (h *BotHandler) SendReport(chatID int64, pdfBytes []byte, apptID int) error {
+func (h *BotHandler) SendReport(chatID int64, pdfBytes []byte, apptID int, patientName string) error {
 	doc := tgbotapi.FileBytes{
-		Name:  fmt.Sprintf("report-%d.pdf", apptID),
+		Name:  fmt.Sprintf("%s.pdf", patientName),
 		Bytes: pdfBytes,
 	}
 	// в v5 send raw bytes через NewDocument:
@@ -253,4 +253,27 @@ func (h *BotHandler) sendMainMenuButtons(chatID int64) {
 	msg := tgbotapi.NewMessage(chatID, "\u200B")
 	msg.ReplyMarkup = keyboard
 	h.bot.Send(msg)
+}
+
+// GetUserLanguage implements the method from the TelegramNotifier interface.
+// It returns the user's preferred language code (e.g., "kz", "ru")
+// and a boolean indicating if the language was found in user-specific settings.
+func (h *BotHandler) GetUserLanguage(chatID int64) (string, bool) {
+	userSpecificLang, found := h.userLang[chatID]
+	if found {
+		switch userSpecificLang {
+		case LangKazakh:
+			return "kz", true
+		case LangRussian:
+			return "ru", true
+		default:
+			// This case might occur if the Language type has other unmapped values.
+			// Returning "ru" (a system default) and true, as a language preference was stored.
+			// Alternatively, could return "ru", false if this state is considered "default".
+			// For now, sticking to "ru", true as a specific (though unmapped here) lang was found.
+			return "ru", true
+		}
+	}
+	// If not found in the map, return a system default language and false.
+	return "ru", false
 }
