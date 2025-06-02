@@ -541,7 +541,7 @@ func (h *BotHandler) handleBookingConfirm(chatID int64, ok bool) {
 
 	delete(h.state, chatID)
 	delete(h.temp, chatID)
-	h.sendMainMenu(chatID)
+	h.sendMainMenuButtons(chatID)
 }
 
 // Helper functions

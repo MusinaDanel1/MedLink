@@ -83,13 +83,33 @@ func (h *BotHandler) HandleMessage(msg *tgbotapi.Message) {
 		return
 	}
 
-	// Если ожидание текста от пользователя для ChatGPT
+	// вход в AI-режим
+	if text == h.loc.Get(lang, "ai_consultation") {
+		h.state[chatID] = "ai_consultation_waiting"
+
+		keyboard := tgbotapi.NewReplyKeyboard(
+			tgbotapi.NewKeyboardButtonRow(
+				tgbotapi.NewKeyboardButton(h.loc.Get(lang, "end_chat")),
+			),
+		)
+		keyboard.OneTimeKeyboard = false
+
+		msg := tgbotapi.NewMessage(chatID, h.loc.Get(lang, "ai_consultation_prompt"))
+		msg.ReplyMarkup = keyboard
+		h.bot.Send(msg)
+		return
+	}
+
+	// если мы в AI-режиме
 	if h.state[chatID] == "ai_consultation_waiting" {
-		if text == "/exit" || text == "/menu" {
+		// кнопка «Завершить чат»
+		if text == h.loc.Get(lang, "end_chat") {
 			delete(h.state, chatID)
+			// вернуть стандартную клавиатуру главного меню
 			h.sendMainMenu(chatID)
 			return
 		}
+		// обычный запрос к ИИ
 		reply, err := h.openai.AskChatGPT(text)
 		if err != nil {
 			h.bot.Send(
@@ -98,10 +118,10 @@ func (h *BotHandler) HandleMessage(msg *tgbotapi.Message) {
 				))
 			return
 		}
-
 		aiMsg := tgbotapi.NewMessage(chatID, reply)
 		aiMsg.ParseMode = "Markdown"
 		h.bot.Send(aiMsg)
+		// остаёмся в режиме AI до «Завершить чат»
 		return
 	}
 
@@ -215,4 +235,22 @@ func (h *BotHandler) sendVideoLink(chatID int64, apptID int) {
 func (h *BotHandler) SendVideoLink(chatID int64, appointmentID int) error {
 	h.sendVideoLink(chatID, appointmentID)
 	return nil
+}
+
+// sendMainMenuButtons показывает клавиатуру главного меню без текста
+func (h *BotHandler) sendMainMenuButtons(chatID int64) {
+	lang := h.getUserLanguage(chatID)
+
+	keyboard := tgbotapi.NewReplyKeyboard(
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton(h.loc.Get(lang, "book_appointment")),
+			tgbotapi.NewKeyboardButton(h.loc.Get(lang, "ai_consultation")),
+		),
+	)
+	keyboard.OneTimeKeyboard = false
+
+	// Отправляем невидимый символ (zero-width space) + клавиатуру
+	msg := tgbotapi.NewMessage(chatID, "\u200B")
+	msg.ReplyMarkup = keyboard
+	h.bot.Send(msg)
 }
