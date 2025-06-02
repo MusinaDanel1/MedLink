@@ -43,24 +43,24 @@ func (ns *NotificationService) StartNotificationScheduler() {
 }
 
 func (ns *NotificationService) checkAndSendNotifications() {
-	// Зона +05:00 без привязки к time.Local
-	loc := time.FixedZone("UTC+5", 5*60*60)
+	now := time.Now()
+	log.Printf("Checking notifications at: %v", now)
 
-	// Текущее локальное «Asia/Almaty» время
-	now := time.Now().In(loc)
-	log.Printf("Checking notifications at: %v (%v)", now, now.Location())
+	// Ищем встречи от now до now+25ч
+	appointments, err := ns.appointmentRepo.
+		GetUpcomingAppointments(now, now.Add(25*time.Hour))
+	if err != nil {
+		log.Printf("Error getting upcoming appointments: %v", err)
+		return
+	}
+	log.Printf("Found %d upcoming appointments", len(appointments))
 
-	appts, _ := ns.appointmentRepo.GetUpcomingAppointments(now, now.Add(25*time.Hour))
-	for _, appt := range appts {
-		// Распакуем поля даты/времени как локальные
-		y, m, d := appt.StartTime.Date()
-		hh, mm, ss := appt.StartTime.Clock()
-		// Соберём «локальный» момент
-		startLocal := time.Date(y, m, d, hh, mm, ss, appt.StartTime.Nanosecond(), loc)
-
-		timeUntil := startLocal.Sub(now)
-		log.Printf("Appointment %d: startLocal=%v, timeUntil=%v",
-			appt.AppointmentID, startLocal, timeUntil)
+	for _, appt := range appointments {
+		// appt.StartTime приходит из Postgres конвертированным в time.Local
+		timeUntil := appt.StartTime.Sub(now)
+		log.Printf("Appointment %d: start=%v, timeUntil=%v",
+			appt.AppointmentID, appt.StartTime, timeUntil,
+		)
 
 		if ns.shouldSendNotification(timeUntil, appt.AppointmentID) {
 			ns.sendAppointmentNotification(appt, timeUntil)

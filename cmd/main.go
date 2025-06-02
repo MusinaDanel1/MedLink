@@ -47,6 +47,11 @@ func main() {
 	}
 	defer db.Close()
 
+	loc, err := time.LoadLocation("Asia/Almaty")
+	if err != nil {
+		log.Fatalf("cannot load Asia/Almaty tz: %v", err)
+	}
+	time.Local = loc
 	// --- BEGIN New User Seeding Logic ---
 	log.Println("Starting new user seeding...")
 
