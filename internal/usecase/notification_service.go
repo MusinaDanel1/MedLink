@@ -43,8 +43,9 @@ func (ns *NotificationService) StartNotificationScheduler() {
 }
 
 func (ns *NotificationService) checkAndSendNotifications() {
-	now := time.Now()
-	log.Printf("Checking notifications at: %v", now)
+	loc := time.FixedZone("UTC+5", 5*60*60)
+	now := time.Now().In(loc)
+	log.Printf("Checking notifications at: %v (%v)", now, now.Location())
 
 	appointments, err := ns.appointmentRepo.GetUpcomingAppointments(now, now.Add(25*time.Hour))
 	if err != nil {
@@ -55,12 +56,17 @@ func (ns *NotificationService) checkAndSendNotifications() {
 	log.Printf("Found %d upcoming appointments", len(appointments))
 
 	for _, appt := range appointments {
-		timeUntil := appt.StartTime.Sub(now)
-		log.Printf("Appointment %d: time until = %v", appt.AppointmentID, timeUntil)
+		// 4) Переводим время приёма в ту же зону
+		start := appt.StartTime.In(loc)
 
-		// Вот здесь — передаем appt.AppointmentID вторым аргументом
+		// 5) Считаем, сколько осталось
+		timeUntil := start.Sub(now)
+		log.Printf(
+			"Appointment %d: start=%v (%v), timeUntil=%v",
+			appt.AppointmentID, start, start.Location(), timeUntil,
+		)
+
 		if ns.shouldSendNotification(timeUntil, appt.AppointmentID) {
-			log.Printf("Sending notification for appointment %d", appt.AppointmentID)
 			ns.sendAppointmentNotification(appt, timeUntil)
 		}
 	}

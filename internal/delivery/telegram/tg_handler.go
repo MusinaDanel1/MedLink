@@ -105,8 +105,7 @@ func (h *BotHandler) HandleMessage(msg *tgbotapi.Message) {
 		// кнопка «Завершить чат»
 		if text == h.loc.Get(lang, "end_chat") {
 			delete(h.state, chatID)
-			// вернуть стандартную клавиатуру главного меню
-			h.sendMainMenu(chatID)
+			h.sendMainMenuButtons(chatID)
 			return
 		}
 		// обычный запрос к ИИ
