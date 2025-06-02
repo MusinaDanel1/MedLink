@@ -85,18 +85,23 @@ func (h *BotHandler) HandleMessage(msg *tgbotapi.Message) {
 
 	// Если ожидание текста от пользователя для ChatGPT
 	if h.state[chatID] == "ai_consultation_waiting" {
+		if text == "/exit" || text == "/menu" {
+			delete(h.state, chatID)
+			h.sendMainMenu(chatID)
+			return
+		}
 		reply, err := h.openai.AskChatGPT(text)
 		if err != nil {
-			h.bot.Send(tgbotapi.NewMessage(chatID, h.loc.Get(lang, "ai_error")+" "+err.Error()))
+			h.bot.Send(
+				tgbotapi.NewMessage(chatID,
+					h.loc.Get(lang, "ai_error")+" "+err.Error(),
+				))
 			return
 		}
 
 		aiMsg := tgbotapi.NewMessage(chatID, reply)
 		aiMsg.ParseMode = "Markdown"
 		h.bot.Send(aiMsg)
-
-		delete(h.state, chatID)
-		h.sendMainMenu(chatID)
 		return
 	}
 
@@ -104,10 +109,13 @@ func (h *BotHandler) HandleMessage(msg *tgbotapi.Message) {
 	switch text {
 	case h.loc.Get(lang, "book_appointment"):
 		h.handleBookingStart(chatID)
+		return
 	case h.loc.Get(lang, "ai_consultation"):
 		h.state[chatID] = "ai_consultation_waiting"
-		msg := tgbotapi.NewMessage(chatID, h.loc.Get(lang, "ai_consultation_prompt"))
-		h.bot.Send(msg)
+		h.bot.Send(
+			tgbotapi.NewMessage(chatID,
+				h.loc.Get(lang, "ai_consultation_prompt")))
+		return
 	default:
 		if h.state[chatID] == "" {
 			h.sendMainMenu(chatID)

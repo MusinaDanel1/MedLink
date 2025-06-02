@@ -320,6 +320,24 @@
       margin-bottom: 1.5rem;
       text-align: justify;
     }
+    /* Секция Telegram-бот: стили для QR-кода */
+    .qr-wrapper {
+      display: flex;
+      justify-content: center;
+    }
+    .qr-code {
+      width: 180px;       /* можно 150–200px подогнать под дизайн */
+      height: auto;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    /* На мобильных немного уменьшим QR */
+    @media (max-width: 576px) {
+      .qr-code {
+        width: 140px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -446,6 +464,13 @@
         взаимодействие с ботом и записаться на дистанционную
         консультацию.
       </p>
+      <div class="qr-wrapper mb-4">
+        <img
+          src="img/qr.jpeg" 
+          alt="QR-код для запуска Telegram-бота MedLink" 
+          class="qr-code"
+        />
+      </div>
       <div class="bot-content">
         <a
           href="https://t.me/VirtualPolyclinicBot"
