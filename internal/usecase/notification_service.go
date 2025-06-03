@@ -119,7 +119,7 @@ func (ns *NotificationService) shouldSendNotification(timeUntil time.Duration, a
 
 // Вспомогательная функция: проверяет, попадает ли timeUntil в интервал targetDuration ± 5 минут.
 func isInTimeRange(timeUntil, targetDuration time.Duration) bool {
-	const margin = 1 * time.Minute
+	const margin = 0 * time.Minute
 	return timeUntil >= targetDuration-margin && timeUntil <= targetDuration+margin
 }
 

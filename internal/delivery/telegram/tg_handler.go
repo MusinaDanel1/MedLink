@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"telemed/internal/usecase"
-	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -110,14 +109,22 @@ func (h *BotHandler) HandleMessage(msg *tgbotapi.Message) {
 			delete(h.state, chatID)
 			delete(h.temp, chatID)
 
-			// Отправляем сообщение, удаляем клавиатуру
-			removeMsg := tgbotapi.NewMessage(chatID, "Вы завершили чат с ИИ.")
-			removeMsg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
-			h.bot.Send(removeMsg)
+			// Сразу собираем клавиатуру главного меню
+			keyboard := tgbotapi.NewReplyKeyboard(
+				tgbotapi.NewKeyboardButtonRow(
+					tgbotapi.NewKeyboardButton(h.loc.Get(lang, "book_appointment")),
+					tgbotapi.NewKeyboardButton(h.loc.Get(lang, "ai_consultation")),
+				),
+			)
+			keyboard.OneTimeKeyboard = false
 
-			// Небольшая задержка для корректного обновления клавиатуры на клиенте
-			time.Sleep(500 * time.Millisecond)
-			h.sendMainMenuButtons(chatID)
+			// Отправляем одно сообщение и в нём одновременно текст + новую клавиатуру
+			msg := tgbotapi.NewMessage(chatID, h.loc.Get(lang, "ai_chat_ended"))
+			msg.ReplyMarkup = keyboard
+
+			if _, err := h.bot.Send(msg); err != nil {
+				log.Printf("failed to send main menu: %v", err)
+			}
 			return
 		}
 		// обычный запрос к ИИ
