@@ -43,13 +43,19 @@ func (ns *NotificationService) StartNotificationScheduler() {
 }
 
 func (ns *NotificationService) checkAndSendNotifications() {
-	// 1) Берём «сейчас» в UTC
-	now := time.Now().UTC()
-	log.Printf("NOW UTC: %s", now.Format("2006-01-02 15:04 MST"))
+	// Создаем фиксированную таймзону GMT+5
+	location := time.FixedZone("GMT+5", 5*3600)
 
-	// 2) Получаем приёмы из БД в интервале [now, now+25h]
-	appts, err := ns.appointmentRepo.
-		GetUpcomingAppointments(now, now.Add(25*time.Hour))
+	// Получаем текущее время в фиксированной таймзоне
+	now := time.Now().In(location)
+	log.Printf("Local time (GMT+5): %s", now.Format("2006-01-02 15:04 MST"))
+
+	// Для работы с БД используем время в UTC
+	nowUTC := now.UTC()
+	log.Printf("UTC time: %s", nowUTC.Format("2006-01-02 15:04 MST"))
+
+	// Получаем приемы из БД в интервале [nowUTC, nowUTC+25h]
+	appts, err := ns.appointmentRepo.GetUpcomingAppointments(nowUTC, nowUTC.Add(25*time.Hour))
 	if err != nil {
 		log.Printf("Error fetching appointments: %v", err)
 		return
@@ -57,20 +63,17 @@ func (ns *NotificationService) checkAndSendNotifications() {
 	log.Printf("Found %d appointments", len(appts))
 
 	for _, appt := range appts {
-		// 3) raw UTC-начало приёма
-		startUTC := appt.StartTime.UTC()
-
-		// 4) сколько осталось до начала по UTC
-		timeUntil := startUTC.Sub(now)
+		// Преобразуем время приема в локальное время (GMT+5)
+		startLocal := appt.StartTime.In(location)
+		timeUntil := startLocal.Sub(now)
 
 		log.Printf(
-			"APPT %d | startUTC: %s | untilUTC: %v",
+			"APPOINTMENT %d | startLocal: %s | timeUntil: %v",
 			appt.AppointmentID,
-			startUTC.Format("2006-01-02 15:04 MST"),
+			startLocal.Format("2006-01-02 15:04 MST"),
 			timeUntil,
 		)
 
-		// 5) Если пора — отправляем уведомление
 		if ns.shouldSendNotification(timeUntil, appt.AppointmentID) {
 			ns.sendAppointmentNotification(appt, timeUntil)
 		}
@@ -78,30 +81,34 @@ func (ns *NotificationService) checkAndSendNotifications() {
 }
 
 func (ns *NotificationService) shouldSendNotification(timeUntil time.Duration, apptID int) bool {
-	// Создаем уникальный ключ для каждого типа уведомления
 	var notifType string
 
-	// 24 часа (±5 минут для большей надежности)
-	if timeUntil >= 23*time.Hour+55*time.Minute && timeUntil <= 24*time.Hour+5*time.Minute {
+	// Точные интервалы для уведомлений
+	switch {
+	case isInTimeRange(timeUntil, 24*time.Hour):
 		notifType = fmt.Sprintf("%d_24h", apptID)
-	} else if timeUntil >= 5*time.Hour+55*time.Minute && timeUntil <= 6*time.Hour+5*time.Minute {
+	case isInTimeRange(timeUntil, 6*time.Hour):
 		notifType = fmt.Sprintf("%d_6h", apptID)
-	} else if timeUntil >= 55*time.Minute && timeUntil <= 1*time.Hour+5*time.Minute {
+	case isInTimeRange(timeUntil, 1*time.Hour):
 		notifType = fmt.Sprintf("%d_1h", apptID)
-	} else if timeUntil >= 25*time.Minute && timeUntil <= 35*time.Minute {
+	case isInTimeRange(timeUntil, 30*time.Minute):
 		notifType = fmt.Sprintf("%d_30m", apptID)
-	} else {
+	default:
 		return false
 	}
 
-	// Проверяем, не отправляли ли уже это уведомление
 	if ns.sentNotifications[notifType] {
 		return false
 	}
 
-	// Помечаем как отправленное
 	ns.sentNotifications[notifType] = true
 	return true
+}
+
+// Вспомогательная функция для проверки временного интервала
+func isInTimeRange(timeUntil, targetDuration time.Duration) bool {
+	margin := 5 * time.Minute
+	return timeUntil >= targetDuration-margin && timeUntil <= targetDuration+margin
 }
 
 func (ns *NotificationService) sendAppointmentNotification(appt domain.NotificationData, timeUntil time.Duration) {
