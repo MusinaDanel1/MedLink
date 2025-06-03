@@ -2,8 +2,10 @@ package telegram
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"telemed/internal/usecase"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -104,12 +106,17 @@ func (h *BotHandler) HandleMessage(msg *tgbotapi.Message) {
 	if h.state[chatID] == "ai_consultation_waiting" {
 		// кнопка «Завершить чат»
 		if text == h.loc.Get(lang, "end_chat") {
+			log.Printf("Ending AI chat for chatID %d", chatID)
 			delete(h.state, chatID)
+			delete(h.temp, chatID)
+
+			// Отправляем сообщение, удаляем клавиатуру
 			removeMsg := tgbotapi.NewMessage(chatID, "Вы завершили чат с ИИ.")
 			removeMsg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
 			h.bot.Send(removeMsg)
-			delete(h.state, chatID)
-			delete(h.temp, chatID)
+
+			// Небольшая задержка для корректного обновления клавиатуры на клиенте
+			time.Sleep(500 * time.Millisecond)
 			h.sendMainMenuButtons(chatID)
 			return
 		}
