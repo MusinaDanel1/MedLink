@@ -70,6 +70,7 @@ func NewLocalization() *Localization {
 				"no_available_dates":      "Нет доступных дат.",
 				"no_slots_for_date":       "На выбранную дату нет доступных слотов.",
 				"end_chat":                "❌ Завершить чат",
+				"ai_chat_ended":           "Чат с ИИ завершен",
 			},
 			LangKazakh: {
 				"choose_language":         "Тілді таңдаңыз:",
@@ -127,6 +128,7 @@ func NewLocalization() *Localization {
 				"no_available_dates":      "Қолжетімді күндер жоқ.",
 				"no_slots_for_date":       "Таңдалған күнге қолжетімді слоттар жоқ.",
 				"end_chat":                "❌ Сөйлесуді аяқтау",
+				"ai_chat_ended":           "ЖИ-пен чат аяқталды",
 			},
 		},
 	}
