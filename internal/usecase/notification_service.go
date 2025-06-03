@@ -43,50 +43,51 @@ func (ns *NotificationService) StartNotificationScheduler() {
 }
 
 func (ns *NotificationService) checkAndSendNotifications() {
-	// 1) зона +05
+	// 1) Задаём зону +05:00
 	loc := time.FixedZone("UTC+5", 5*60*60)
 
-	// 2) сейчас UTC и “локальное” +05
+	// 2) Текущее время в UTC и в локальной зоне +05
 	nowUTC := time.Now().UTC()
 	nowLocal := nowUTC.In(loc)
-
 	log.Printf(
-		"NOW      → UTC: %v | Local(+5): %v\n",
+		"NOW UTC:   %s | NOW Local(+5): %s",
 		nowUTC.Format("2006-01-02 15:04:05 MST"),
 		nowLocal.Format("2006-01-02 15:04:05 MST"),
 	)
 
-	// 3) получаем встречи из БД (они придут с .Location() == UTC)
-	appointments, err := ns.appointmentRepo.
+	// 3) Получаем встречи из БД в UTC-диапазоне [nowUTC, nowUTC+25h]
+	appts, err := ns.appointmentRepo.
 		GetUpcomingAppointments(nowUTC, nowUTC.Add(25*time.Hour))
 	if err != nil {
 		log.Printf("Error fetching appointments: %v", err)
 		return
 	}
-	log.Printf("Found %d appointments", len(appointments))
+	log.Printf("Found %d appointments", len(appts))
 
-	for _, appt := range appointments {
-		// 4) представляем startTime в UTC и в зоне +05
+	// 4) Обходим каждый прием
+	for _, appt := range appts {
+		// Берём исходный момент в UTC
 		startUTC := appt.StartTime.UTC()
-		startLocal := startUTC.In(loc)
 
-		// 5) два расчёта до приёма
-		untilUTC := startUTC.Sub(nowUTC)
-		untilLocal := startLocal.Sub(nowLocal)
+		// Интерпретируем часы и минуты как локальные +05
+		// 12:48 UTC → +5h = 17:48 UTC, In(loc) даст 17:48 +05
+		startLocal := startUTC.Add(5 * time.Hour).In(loc)
 
+		// Считаем, сколько осталось до локального “сейчас”
+		timeUntil := startLocal.Sub(nowLocal)
+
+		// Логируем детали
 		log.Printf(
-			"APPT %d → start UTC: %v | start Local(+5): %v\n"+
-				"           until UTC: %v | until Local(+5): %v",
+			"APPT %d | raw UTC: %s | local interpreted: %s | until: %v",
 			appt.AppointmentID,
 			startUTC.Format("2006-01-02 15:04:05 MST"),
 			startLocal.Format("2006-01-02 15:04:05 MST"),
-			untilUTC,
-			untilLocal,
+			timeUntil,
 		)
 
-		// 6) используем untilLocal для триггеров
-		if ns.shouldSendNotification(untilLocal, appt.AppointmentID) {
-			ns.sendAppointmentNotification(appt, untilLocal)
+		// 5) Если пора — отправляем уведомление
+		if ns.shouldSendNotification(timeUntil, appt.AppointmentID) {
+			ns.sendAppointmentNotification(appt, timeUntil)
 		}
 	}
 }
