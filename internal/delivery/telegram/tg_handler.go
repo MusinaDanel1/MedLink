@@ -108,6 +108,8 @@ func (h *BotHandler) HandleMessage(msg *tgbotapi.Message) {
 			removeMsg := tgbotapi.NewMessage(chatID, "Вы завершили чат с ИИ.")
 			removeMsg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
 			h.bot.Send(removeMsg)
+			delete(h.state, chatID)
+			delete(h.temp, chatID)
 			h.sendMainMenuButtons(chatID)
 			return
 		}
