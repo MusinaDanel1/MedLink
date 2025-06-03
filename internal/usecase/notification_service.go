@@ -134,20 +134,6 @@ func (ns *NotificationService) sendAppointmentNotification(
 		}
 	}
 
-	// Если осталось 5 минут, используем динамическую отправку ссылки (логика прежнего видео-уведомления).
-	if isInTimeRange(timeUntil, 5*time.Minute) {
-		log.Printf("Attempting to send 5-minute video link notification for AppointmentID: %d to PatientChatID: %d (Language: %s)",
-			appt.AppointmentID, appt.PatientChatID, finalLangCode)
-		if err := ns.telegramBot.SendVideoLink(appt.PatientChatID, appt.AppointmentID); err != nil {
-			log.Printf("Error sending 5-minute video link for AppointmentID: %d to PatientChatID: %d: %v",
-				appt.AppointmentID, appt.PatientChatID, err)
-		} else {
-			log.Printf("Successfully sent 5-minute video link notification for AppointmentID: %d to PatientChatID: %d",
-				appt.AppointmentID, appt.PatientChatID)
-		}
-		return
-	}
-
 	message := ns.formatNotificationMessage(appt, timeUntil, finalLangCode)
 	var notifTypeStr string
 	switch {
@@ -159,6 +145,8 @@ func (ns *NotificationService) sendAppointmentNotification(
 		notifTypeStr = "1-hour"
 	case isInTimeRange(timeUntil, 30*time.Minute):
 		notifTypeStr = "30-minute"
+	case isInTimeRange(timeUntil, 5*time.Minute):
+		notifTypeStr = "5-minute"
 	default:
 		notifTypeStr = fmt.Sprintf("unknown (timeUntil: %v)", timeUntil)
 	}
@@ -179,41 +167,108 @@ func (ns *NotificationService) formatNotificationMessage(
 	timeUntil time.Duration,
 	languageCode string,
 ) string {
-	timeStr := appt.StartTime.Format("02.01.2006 15:04")
-	var timeLeft, message string
+	// Форматируем время приема, как оно хранится в БД, например: "03.06.2025 12:48"
+	meetingTimeStr := appt.StartTime.Format("02.01.2006 15:04")
+	var message string
 
 	if languageCode == "kz" {
-		if timeUntil >= 23*time.Hour {
-			timeLeft = "24 сағат"
-		} else if timeUntil >= 5*time.Hour {
-			timeLeft = "6 сағат"
+		if isInTimeRange(timeUntil, 24*time.Hour) {
+			message = fmt.Sprintf(
+				"🔔 Дәрігерге жазылу туралы еске салу\n\n"+
+					"Дәрігер: %s\n"+
+					"Қызмет: %s\n"+
+					"Уақыт: %s\n\n"+
+					"Қабылдауға дейін: 24 сағат",
+				appt.DoctorName, appt.ServiceName, meetingTimeStr,
+			)
+		} else if isInTimeRange(timeUntil, 6*time.Hour) {
+			message = fmt.Sprintf(
+				"🔔 Дәрігерге жазылу туралы еске салу\n\n"+
+					"Дәрігер: %s\n"+
+					"Қызмет: %s\n"+
+					"Уақыт: %s\n\n"+
+					"Қабылдауға дейін: 6 сағат",
+				appt.DoctorName, appt.ServiceName, meetingTimeStr,
+			)
+		} else if isInTimeRange(timeUntil, 1*time.Hour) {
+			message = fmt.Sprintf(
+				"🔔 Дәрігерге жазылу туралы еске салу\n\n"+
+					"Дәрігер: %s\n"+
+					"Қызмет: %s\n"+
+					"Уақыт: %s\n\n"+
+					"Қабылдауға дейін: 1 сағат",
+				appt.DoctorName, appt.ServiceName, meetingTimeStr,
+			)
+		} else if isInTimeRange(timeUntil, 30*time.Minute) {
+			message = fmt.Sprintf(
+				"🔔 Дәрігерге жазылу туралы еске салу\n\n"+
+					"Дәрігер: %s\n"+
+					"Қызмет: %s\n"+
+					"Уақыт: %s\n\n"+
+					"Қабылдауға дейін: 30 минут",
+				appt.DoctorName, appt.ServiceName, meetingTimeStr,
+			)
+		} else if isInTimeRange(timeUntil, 5*time.Minute) {
+			message = fmt.Sprintf(
+				"🔔 Дәрігерге жазылу туралы еске салу\n\n"+
+					"Дәрігер: %s\n"+
+					"Қызмет: %s\n"+
+					"Уақыт: %s\n\n"+
+					"5 минуттан кейін қабылдау басталады. Өтінеміз, дайындықты тексеріп, төмендегі сілтеме арқылы қосылыңыз:",
+				appt.DoctorName, appt.ServiceName, meetingTimeStr,
+			)
 		} else {
-			timeLeft = "1 сағат"
+			message = "Белгісіз уақыт аралығы үшін ескерту хабарламасы."
 		}
-		message = fmt.Sprintf(
-			"🔔 Дәрігерге жазылу туралы еске салу\n\n"+
-				"Дәрігер: %s\n"+
-				"Қызмет: %s\n"+
-				"Уақыт: %s\n\n"+
-				"Қабылдауға дейін: %s",
-			appt.DoctorName, appt.ServiceName, timeStr, timeLeft,
-		)
-	} else {
-		if timeUntil >= 23*time.Hour {
-			timeLeft = "24 часа"
-		} else if timeUntil >= 5*time.Hour {
-			timeLeft = "6 часов"
+	} else { // по умолчанию русский язык
+		if isInTimeRange(timeUntil, 24*time.Hour) {
+			message = fmt.Sprintf(
+				"🔔 Напоминание о записи к врачу\n\n"+
+					"Врач: %s\n"+
+					"Услуга: %s\n"+
+					"Время: %s\n\n"+
+					"До приема осталось: 24 часа",
+				appt.DoctorName, appt.ServiceName, meetingTimeStr,
+			)
+		} else if isInTimeRange(timeUntil, 6*time.Hour) {
+			message = fmt.Sprintf(
+				"🔔 Напоминание о записи к врачу\n\n"+
+					"Врач: %s\n"+
+					"Услуга: %s\n"+
+					"Время: %s\n\n"+
+					"До приема осталось: 6 часов",
+				appt.DoctorName, appt.ServiceName, meetingTimeStr,
+			)
+		} else if isInTimeRange(timeUntil, 1*time.Hour) {
+			message = fmt.Sprintf(
+				"🔔 Напоминание о записи к врачу\n\n"+
+					"Врач: %s\n"+
+					"Услуга: %s\n"+
+					"Время: %s\n\n"+
+					"До приема осталось: 1 час",
+				appt.DoctorName, appt.ServiceName, meetingTimeStr,
+			)
+		} else if isInTimeRange(timeUntil, 30*time.Minute) {
+			message = fmt.Sprintf(
+				"🔔 Напоминание о записи к врачу\n\n"+
+					"Врач: %s\n"+
+					"Услуга: %s\n"+
+					"Время: %s\n\n"+
+					"До приема осталось: 30 минут",
+				appt.DoctorName, appt.ServiceName, meetingTimeStr,
+			)
+		} else if isInTimeRange(timeUntil, 5*time.Minute) {
+			message = fmt.Sprintf(
+				"🔔 Напоминание о записи к врачу\n\n"+
+					"Врач: %s\n"+
+					"Услуга: %s\n"+
+					"Время: %s\n\n"+
+					"Через 5 минут начнется прием. Пожалуйста, проверьте готовность оборудования и подключитесь к видеозвонку",
+				appt.DoctorName, appt.ServiceName, meetingTimeStr,
+			)
 		} else {
-			timeLeft = "1 час"
+			message = "Неизвестное окно времени для уведомления."
 		}
-		message = fmt.Sprintf(
-			"🔔 Напоминание о записи к врачу\n\n"+
-				"Врач: %s\n"+
-				"Услуга: %s\n"+
-				"Время: %s\n\n"+
-				"До приема осталось: %s",
-			appt.DoctorName, appt.ServiceName, timeStr, timeLeft,
-		)
 	}
 
 	return message

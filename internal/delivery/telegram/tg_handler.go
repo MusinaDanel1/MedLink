@@ -239,7 +239,9 @@ func (h *BotHandler) SendVideoLink(chatID int64, appointmentID int) error {
 // sendMainMenuButtons показывает клавиатуру главного меню без текста
 func (h *BotHandler) sendMainMenuButtons(chatID int64) {
 	lang := h.getUserLanguage(chatID)
-
+	removeMsg := tgbotapi.NewMessage(chatID, "Вы завершили чат с ИИ.")
+	removeMsg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
+	h.bot.Send(removeMsg)
 	keyboard := tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButtonRow(
 			tgbotapi.NewKeyboardButton(h.loc.Get(lang, "book_appointment")),
