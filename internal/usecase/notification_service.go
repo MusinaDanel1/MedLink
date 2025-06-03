@@ -64,9 +64,6 @@ func (ns *NotificationService) checkAndSendNotifications() {
 	log.Printf("Found %d appointments", len(appts))
 
 	for _, appt := range appts {
-		// Вместо обычного преобразования через In(location)
-		// создаем новое время с теми же компонентами (год, месяц, день, часы и т.д.)
-		// и назначаем ему нашу фиксированную временную зону, чтобы числовое значение времени не менялось.
 		startLocal := time.Date(
 			appt.StartTime.Year(),
 			appt.StartTime.Month(),
@@ -105,6 +102,8 @@ func (ns *NotificationService) shouldSendNotification(timeUntil time.Duration, a
 		notifType = fmt.Sprintf("%d_1h", apptID)
 	case isInTimeRange(timeUntil, 30*time.Minute):
 		notifType = fmt.Sprintf("%d_30m", apptID)
+	case isInTimeRange(timeUntil, 5*time.Minute):
+		notifType = fmt.Sprintf("%d_5m", apptID)
 	default:
 		return false
 	}
@@ -135,21 +134,20 @@ func (ns *NotificationService) sendAppointmentNotification(
 		}
 	}
 
-	// Если приходит окно для 30-минутного уведомления, отправляем видео-ссылку
-	if isInTimeRange(timeUntil, 30*time.Minute) {
-		log.Printf("Sending 30-minute video link for AppointmentID: %d to PatientChatID: %d (Language: %s)",
+	// Если осталось 5 минут, используем динамическую отправку ссылки (логика прежнего видео-уведомления).
+	if isInTimeRange(timeUntil, 5*time.Minute) {
+		log.Printf("Attempting to send 5-minute video link notification for AppointmentID: %d to PatientChatID: %d (Language: %s)",
 			appt.AppointmentID, appt.PatientChatID, finalLangCode)
 		if err := ns.telegramBot.SendVideoLink(appt.PatientChatID, appt.AppointmentID); err != nil {
-			log.Printf("Error sending 30-minute video link for AppointmentID: %d to PatientChatID: %d: %v",
+			log.Printf("Error sending 5-minute video link for AppointmentID: %d to PatientChatID: %d: %v",
 				appt.AppointmentID, appt.PatientChatID, err)
 		} else {
-			log.Printf("Successfully sent 30-minute video link for AppointmentID: %d to PatientChatID: %d",
+			log.Printf("Successfully sent 5-minute video link notification for AppointmentID: %d to PatientChatID: %d",
 				appt.AppointmentID, appt.PatientChatID)
 		}
 		return
 	}
 
-	// Для остальных окон отправляем текстовое уведомление
 	message := ns.formatNotificationMessage(appt, timeUntil, finalLangCode)
 	var notifTypeStr string
 	switch {
@@ -159,6 +157,8 @@ func (ns *NotificationService) sendAppointmentNotification(
 		notifTypeStr = "6-hour"
 	case isInTimeRange(timeUntil, 1*time.Hour):
 		notifTypeStr = "1-hour"
+	case isInTimeRange(timeUntil, 30*time.Minute):
+		notifTypeStr = "30-minute"
 	default:
 		notifTypeStr = fmt.Sprintf("unknown (timeUntil: %v)", timeUntil)
 	}
