@@ -46,8 +46,6 @@ func main() {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer db.Close()
-
-	time.Local = time.FixedZone("UTC+5", 5*60*60)
 	// --- BEGIN New User Seeding Logic ---
 	log.Println("Starting new user seeding...")
 

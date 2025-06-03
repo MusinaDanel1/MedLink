@@ -43,27 +43,50 @@ func (ns *NotificationService) StartNotificationScheduler() {
 }
 
 func (ns *NotificationService) checkAndSendNotifications() {
-	now := time.Now()
-	log.Printf("Checking notifications at: %v", now)
+	// 1) зона +05
+	loc := time.FixedZone("UTC+5", 5*60*60)
 
-	// Ищем встречи от now до now+25ч
+	// 2) сейчас UTC и “локальное” +05
+	nowUTC := time.Now().UTC()
+	nowLocal := nowUTC.In(loc)
+
+	log.Printf(
+		"NOW      → UTC: %v | Local(+5): %v\n",
+		nowUTC.Format("2006-01-02 15:04:05 MST"),
+		nowLocal.Format("2006-01-02 15:04:05 MST"),
+	)
+
+	// 3) получаем встречи из БД (они придут с .Location() == UTC)
 	appointments, err := ns.appointmentRepo.
-		GetUpcomingAppointments(now, now.Add(25*time.Hour))
+		GetUpcomingAppointments(nowUTC, nowUTC.Add(25*time.Hour))
 	if err != nil {
-		log.Printf("Error getting upcoming appointments: %v", err)
+		log.Printf("Error fetching appointments: %v", err)
 		return
 	}
-	log.Printf("Found %d upcoming appointments", len(appointments))
+	log.Printf("Found %d appointments", len(appointments))
 
 	for _, appt := range appointments {
-		// appt.StartTime приходит из Postgres конвертированным в time.Local
-		timeUntil := appt.StartTime.Sub(now)
-		log.Printf("Appointment %d: start=%v, timeUntil=%v",
-			appt.AppointmentID, appt.StartTime, timeUntil,
+		// 4) представляем startTime в UTC и в зоне +05
+		startUTC := appt.StartTime.UTC()
+		startLocal := startUTC.In(loc)
+
+		// 5) два расчёта до приёма
+		untilUTC := startUTC.Sub(nowUTC)
+		untilLocal := startLocal.Sub(nowLocal)
+
+		log.Printf(
+			"APPT %d → start UTC: %v | start Local(+5): %v\n"+
+				"           until UTC: %v | until Local(+5): %v",
+			appt.AppointmentID,
+			startUTC.Format("2006-01-02 15:04:05 MST"),
+			startLocal.Format("2006-01-02 15:04:05 MST"),
+			untilUTC,
+			untilLocal,
 		)
 
-		if ns.shouldSendNotification(timeUntil, appt.AppointmentID) {
-			ns.sendAppointmentNotification(appt, timeUntil)
+		// 6) используем untilLocal для триггеров
+		if ns.shouldSendNotification(untilLocal, appt.AppointmentID) {
+			ns.sendAppointmentNotification(appt, untilLocal)
 		}
 	}
 }
