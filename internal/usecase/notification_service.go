@@ -43,45 +43,30 @@ func (ns *NotificationService) StartNotificationScheduler() {
 }
 
 func (ns *NotificationService) checkAndSendNotifications() {
-	// 1) Задаём зону +05:00
-	loc := time.FixedZone("UTC+5", 5*60*60)
+	// 1) Берём «сейчас» в UTC
+	now := time.Now().UTC()
+	log.Printf("NOW UTC: %s", now.Format("2006-01-02 15:04 MST"))
 
-	// 2) Текущее время в UTC и в локальной зоне +05
-	nowUTC := time.Now().UTC()
-	nowLocal := nowUTC.In(loc)
-	log.Printf(
-		"NOW UTC:   %s | NOW Local(+5): %s",
-		nowUTC.Format("2006-01-02 15:04:05 MST"),
-		nowLocal.Format("2006-01-02 15:04:05 MST"),
-	)
-
-	// 3) Получаем встречи из БД в UTC-диапазоне [nowUTC, nowUTC+25h]
+	// 2) Получаем приёмы из БД в интервале [now, now+25h]
 	appts, err := ns.appointmentRepo.
-		GetUpcomingAppointments(nowUTC, nowUTC.Add(25*time.Hour))
+		GetUpcomingAppointments(now, now.Add(25*time.Hour))
 	if err != nil {
 		log.Printf("Error fetching appointments: %v", err)
 		return
 	}
 	log.Printf("Found %d appointments", len(appts))
 
-	// 4) Обходим каждый прием
 	for _, appt := range appts {
-		// Берём исходный момент в UTC
+		// 3) raw UTC-начало приёма
 		startUTC := appt.StartTime.UTC()
 
-		// Интерпретируем часы и минуты как локальные +05
-		// 12:48 UTC → +5h = 17:48 UTC, In(loc) даст 17:48 +05
-		startLocal := startUTC.Add(5 * time.Hour).In(loc)
+		// 4) сколько осталось до начала по UTC
+		timeUntil := startUTC.Sub(now)
 
-		// Считаем, сколько осталось до локального “сейчас”
-		timeUntil := startLocal.Sub(nowLocal)
-
-		// Логируем детали
 		log.Printf(
-			"APPT %d | raw UTC: %s | local interpreted: %s | until: %v",
+			"APPT %d | startUTC: %s | untilUTC: %v",
 			appt.AppointmentID,
-			startUTC.Format("2006-01-02 15:04:05 MST"),
-			startLocal.Format("2006-01-02 15:04:05 MST"),
+			startUTC.Format("2006-01-02 15:04 MST"),
 			timeUntil,
 		)
 
