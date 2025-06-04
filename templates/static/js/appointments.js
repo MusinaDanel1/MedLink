@@ -194,6 +194,7 @@ function updatePatientInfoUI() {
 }
 
 function openChat(){
+  chatPanel.style.display = 'flex';
   chatPanel.classList.add('open');
   chatOverlay.classList.add('visible');
 
