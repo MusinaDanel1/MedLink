@@ -174,55 +174,56 @@ function updatePatientInfoUI() {
 
   // Initialize chat panel
   const chatPanel = document.getElementById('chat-panel');
+  const chatOverlay = document.getElementById('chatOverlay');
   const sidebar = document.querySelector('.sidebar');
   const toggleChatBtn = document.getElementById('toggleChat');
   const closeChatBtn = document.getElementById('closeChat');
+  const videoArea = document.querySelector('.video-area')
 
   // Hide sidebar for patient, show only chat
   if (role === 'patient') {
-    if (sidebar) sidebar.style.display = 'none';
-    if (chatPanel) chatPanel.style.display = 'none';
-    if (toggleChatBtn) toggleChatBtn.style.display = 'inline-flex';
+  sidebar.style.display    = 'none';
+  videoArea.style.display      = 'flex';
+  toggleChatBtn.style.display  = 'inline-flex';
+  chatPanel.classList.remove('open');
+} else {
+  sidebar.style.display    = 'flex';
+  videoArea.style.display      = 'flex';
+  toggleChatBtn.style.display  = 'inline-flex';
+  chatPanel.classList.remove('open');
+}
+
+function openChat(){
+  chatPanel.classList.add('open');
+  chatOverlay.classList.add('visible');
+
+  if (role == 'patient') {
+    videoArea.style.display = 'none';
   } else {
-    // Doctor: show sidebar, hide chat by default
-    if (sidebar) sidebar.style.display = 'flex';
-    if (chatPanel) chatPanel.style.display = 'none';
-    if (toggleChatBtn) toggleChatBtn.style.display = 'inline-flex';
+    sidebar.style.display = 'none';
   }
+  loadChat();
+}
+
+function closeChat() {
+  chatPanel.classList.remove('open');
+  chatOverlay.classList.remove('visible');
+  if (role == 'patient') {
+    videoArea.style.display = 'flex';
+  } else {
+    sidebar.style.display = 'flex';
+  }
+}
 
   // Chat toggle button handler
   toggleChatBtn.onclick = () => {
-    const showingChat = chatPanel.style.display !== 'none';
-    console.log('Toggle chat clicked');
-
-    if (!showingChat) {
-      chatPanel.style.display = 'flex';
-      if (role == 'patient') {
-        document.querySelector('.video-area').style.display = 'none';
-      } else {
-        sidebar.style.display = 'none';
-      }
-      loadChat()
-    } else {
-      chatPanel.style.display = 'none';
-      if (role === 'patient') {
-        document.querySelector('.video-area').style.display = 'flex';
-      } else {
-        sidebar.style.display = 'flex';
-      }
-    }
+    if (chatPanel.classList.contains('open')) closeChat();
+    else openChat();
   };
 
   // Close chat button handler
-  closeChatBtn.onclick = () => {
-    console.log('Close chat clicked');
-    chatPanel.style.display = 'none';
-    if (role == 'patient') {
-      document.querySelector('.video-area').style.display = 'flex';
-    } else {
-      sidebar.style.display = 'flex';
-    }
-  };
+  closeChatBtn.onclick = closeChat;
+  chatOverlay.onclick = closeChat;
 
   // ===== WebRTC setup =====
   const pc = new RTCPeerConnection({
