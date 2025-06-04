@@ -53,8 +53,13 @@ func (g *Generator) GenerateAppointmentReport(
 		fmt.Sprintf("%s (%s)", doctorName, specializationName),
 		"", 1, "", false, 0, "",
 	)
+	now := time.Now().UTC().Add(5 * time.Hour)
 	pdf.CellFormat(40, 6, "Дата:", "", 0, "", false, 0, "")
-	pdf.CellFormat(0, 6, time.Now().Format("2006-01-02 15:04"), "", 1, "", false, 0, "")
+	pdf.CellFormat(
+		0, 6,
+		now.Format("2006-01-02 15:04"),
+		"", 1, "", false, 0, "",
+	)
 
 	// Секции
 	pdf.Ln(4)
