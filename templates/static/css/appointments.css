@@ -277,4 +277,23 @@
     padding: 8px 16px;
     border-radius: 32px;
   }
-  
+  @media (max-width: 768px) {
+    .sidebar {
+      display: none !important;
+    }
+    .chat-panel {
+      position: absolute;
+      top: 0; right: 0;
+      width: 100% !important;
+      height: 100vh;
+      z-index: 100;
+      background: white;
+    }
+    .video-area {
+      width: 100% !important;
+      height: calc(100vh - 60px);
+    }
+    .controls {
+      bottom: 20px;
+    }
+  }

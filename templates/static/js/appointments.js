@@ -181,8 +181,8 @@ function updatePatientInfoUI() {
   // Hide sidebar for patient, show only chat
   if (role === 'patient') {
     if (sidebar) sidebar.style.display = 'none';
-    if (chatPanel) chatPanel.style.display = 'flex';
-    if (toggleChatBtn) toggleChatBtn.style.display = 'none';
+    if (chatPanel) chatPanel.style.display = 'none';
+    if (toggleChatBtn) toggleChatBtn.style.display = 'inline-flex';
   } else {
     // Doctor: show sidebar, hide chat by default
     if (sidebar) sidebar.style.display = 'flex';
@@ -192,16 +192,24 @@ function updatePatientInfoUI() {
 
   // Chat toggle button handler
   toggleChatBtn.onclick = () => {
+    const showingChat = chatPanel.style.display !== 'none';
     console.log('Toggle chat clicked');
-    if (chatPanel.style.display === 'none') {
-      // Show chat, hide sidebar
+
+    if (!showingChat) {
       chatPanel.style.display = 'flex';
-      sidebar.style.display = 'none';
-      loadChat();
+      if (role == 'patient') {
+        document.querySelector('.video-area').style.display = 'none';
+      } else {
+        sidebar.style.display = 'none';
+      }
+      loadChat()
     } else {
-      // Hide chat, show sidebar
       chatPanel.style.display = 'none';
-      sidebar.style.display = 'block';
+      if (role === 'patient') {
+        document.querySelector('.video-area').style.display = 'flex';
+      } else {
+        sidebar.style.display = 'flex';
+      }
     }
   };
 
@@ -209,7 +217,11 @@ function updatePatientInfoUI() {
   closeChatBtn.onclick = () => {
     console.log('Close chat clicked');
     chatPanel.style.display = 'none';
-    sidebar.style.display = 'block';
+    if (role == 'patient') {
+      document.querySelector('.video-area').style.display = 'flex';
+    } else {
+      sidebar.style.display = 'flex';
+    }
   };
 
   // ===== WebRTC setup =====
