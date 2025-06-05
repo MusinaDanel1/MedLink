@@ -1,4 +1,4 @@
-/* === Reset & общие стили === */
+/* === Reset и общие стили === */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -13,7 +13,7 @@ body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-/* === Основная структура === */
+/* === Основная структура страницы === */
 .container {
   display: flex;
   height: 100vh;
@@ -40,7 +40,7 @@ body {
   display: block;
 }
 
-/* Локальное видео (мини-превью) */
+/* Локальное (мини) видео */
 .local {
   position: absolute;
   bottom: 120px;
@@ -61,7 +61,7 @@ body {
   object-fit: cover;
 }
 
-/* === Панель управления звонком === */
+/* === Панель управления звонком (контролы) === */
 .controls {
   position: absolute;
   bottom: 30px;
@@ -116,7 +116,7 @@ body {
   opacity: 0.6;
 }
 
-/* === Сайдбар и панель чата === */
+/* === Сайдбар и панель чата (панель врача) === */
 .sidebar,
 .chat-panel {
   width: 400px;
@@ -134,9 +134,10 @@ body {
   z-index: 20;
 }
 
-/* === Вкладки (Tabs) === */
+/* === Вкладки (меню) для врача – вертикальным столбцом === */
 .tabs {
   display: flex;
+  flex-direction: column;
   padding: 10px;
   background: #f8f9fa;
   border-bottom: 1px solid #dee2e6;
@@ -187,7 +188,7 @@ body {
   display: block;
 }
 
-/* === Формы и кнопки в карточке пациента === */
+/* === Формы, информационные блоки, медкарта и т.д. === */
 .form-group {
   margin-bottom: 12px;
 }
@@ -218,7 +219,6 @@ body {
   width: 100%;
 }
 
-/* === Информационные блоки (Мед. карта) === */
 .section-title {
   margin: 16px 0 8px;
   font-size: 18px;
@@ -301,7 +301,6 @@ body {
   white-space: nowrap;
 }
 
-/* Таблица рецептов */
 #prescriptionsWrapper {
   display: none;
   overflow-x: hidden;
@@ -460,7 +459,7 @@ body {
   font-weight: 500;
 }
 
-/* === Мобильная адаптация === */
+/* === Мобильная адаптация (общие поправки) === */
 @media (max-width: 768px) {
   .container {
     flex-direction: column;
@@ -489,10 +488,11 @@ body {
     padding: 8px 16px;
   }
 
-  .controls button {
-    width: 48px;
-    height: 48px;
-    font-size: 20px;
+  /* Если интерфейс для пациента, то для удобства увеличиваем кнопки */
+  body.patient-view .controls button {
+    width: 64px;
+    height: 64px;
+    font-size: 28px;
   }
 
   .chat-input {
@@ -518,10 +518,11 @@ body {
     padding: 6px 12px;
   }
 
-  .controls button {
-    width: 44px;
-    height: 44px;
-    font-size: 18px;
+  /* Для пациентов на маленьких экранах – пусть кнопки остаются удобными */
+  body.patient-view .controls button {
+    width: 64px;
+    height: 64px;
+    font-size: 28px;
   }
 
   .chat-header {
@@ -533,13 +534,9 @@ body {
   }
 }
 
-/* === Специальные правила === */
+/* === Специальные правила: высота для iOS и hover-эффекты на устройствах без hover === */
 @supports (-webkit-touch-callout: none) {
-  .container {
-    height: 100vh;
-    height: -webkit-fill-available;
-  }
-
+  .container,
   .video-area {
     height: 100vh;
     height: -webkit-fill-available;
