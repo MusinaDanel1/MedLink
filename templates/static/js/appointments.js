@@ -174,11 +174,9 @@ function updatePatientInfoUI() {
 
   // Initialize chat panel
   const chatPanel = document.getElementById('chat-panel');
-  const chatOverlay = document.getElementById('chatOverlay');
   const sidebar = document.querySelector('.sidebar');
   const toggleChatBtn = document.getElementById('toggleChat');
   const closeChatBtn = document.getElementById('closeChat');
-  const videoArea = document.querySelector('.video-area')
 
   // Hide sidebar for patient, show only chat
   if (role === 'patient') {
@@ -186,9 +184,11 @@ function updatePatientInfoUI() {
     if (chatPanel) chatPanel.style.display = 'none';
     if (toggleChatBtn) toggleChatBtn.style.display = 'inline-flex';
   } else {
-    sidebar.style.display = 'flex';
+    // Doctor: show sidebar, hide chat by default
+    if (sidebar) sidebar.style.display = 'flex';
+    if (chatPanel) chatPanel.style.display = 'none';
+    if (toggleChatBtn) toggleChatBtn.style.display = 'inline-flex';
   }
-}
 
   // Chat toggle button handler
   toggleChatBtn.onclick = () => {
@@ -196,15 +196,15 @@ function updatePatientInfoUI() {
     if (chatPanel.style.display === 'none') {
       // Show chat, hide sidebar
       chatPanel.style.display = 'flex';
-      if (role == 'doctor') {
-        sidebar.style.display = 'none';
+      if (role === 'doctor') {
+        sidebar.style.display = 'none'; 
       }
       loadChat();
     } else {
       // Hide chat, show sidebar
       chatPanel.style.display = 'none';
-      if (role == 'doctor'){
-        sidebar.style.display = 'block';
+      if (role === 'doctor') {
+        sidebar.style.display = 'block'; 
       }
     }
   };
@@ -213,7 +213,7 @@ function updatePatientInfoUI() {
   closeChatBtn.onclick = () => {
     console.log('Close chat clicked');
     chatPanel.style.display = 'none';
-    if (role == 'doctor') {
+    if (role === 'doctor') {
       sidebar.style.display = 'block';
     }
   };
@@ -675,4 +675,3 @@ document.getElementById("saveBtn").onclick = async () => {
     alert("Ошибка: " + (await res.text()));
   }
 };
-
