@@ -174,9 +174,11 @@ function updatePatientInfoUI() {
 
   // Initialize chat panel
   const chatPanel = document.getElementById('chat-panel');
+  const chatOverlay = document.getElementById('chatOverlay');
   const sidebar = document.querySelector('.sidebar');
   const toggleChatBtn = document.getElementById('toggleChat');
   const closeChatBtn = document.getElementById('closeChat');
+  const videoArea = document.querySelector('.video-area')
 
   // Hide sidebar for patient, show only chat
   if (role === 'patient') {
@@ -184,11 +186,9 @@ function updatePatientInfoUI() {
     if (chatPanel) chatPanel.style.display = 'none';
     if (toggleChatBtn) toggleChatBtn.style.display = 'inline-flex';
   } else {
-    // Doctor: show sidebar, hide chat by default
-    if (sidebar) sidebar.style.display = 'flex';
-    if (chatPanel) chatPanel.style.display = 'none';
-    if (toggleChatBtn) toggleChatBtn.style.display = 'inline-flex';
+    sidebar.style.display = 'flex';
   }
+}
 
   // Chat toggle button handler
   toggleChatBtn.onclick = () => {
