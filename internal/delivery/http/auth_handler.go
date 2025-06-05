@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"html/template"
 	"log"
+	"medlink/internal/domain"
 	"net/http"
 	"os"
 	"path/filepath"
-	"telemed/internal/domain"
 )
 
 type AuthHandler struct {

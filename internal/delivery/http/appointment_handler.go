@@ -4,16 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"medlink/internal/delivery/telegram"
+	"medlink/internal/domain"
+	"medlink/internal/pdf"
 	"net/http"
 	"strconv"
-	"telemed/internal/delivery/telegram"
-	"telemed/internal/domain"
-	"telemed/internal/pdf"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
-	"telemed/internal/usecase"
+	"medlink/internal/usecase"
 )
 
 type AppointmentHandler struct {

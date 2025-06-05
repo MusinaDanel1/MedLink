@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"telemed/internal/domain"
+	"medlink/internal/domain"
 
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"

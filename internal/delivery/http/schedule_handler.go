@@ -1,4 +1,4 @@
-// telemed/internal/handlers/schedule_handler.go
+// medlink/internal/handlers/schedule_handler.go
 package http
 
 import (
@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"time"
 
-	"telemed/internal/domain"
-	"telemed/internal/usecase"
+	"medlink/internal/domain"
+	"medlink/internal/usecase"
 
 	"github.com/gin-gonic/gin"
 )

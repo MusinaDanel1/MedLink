@@ -1,7 +1,7 @@
 package usecase
 
 import (
-	"telemed/internal/domain"
+	"medlink/internal/domain"
 )
 
 // ScheduleService описывает бизнес-логику schedule

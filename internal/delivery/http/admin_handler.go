@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"io"
 	"log"
+	"medlink/internal/domain"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
-	"telemed/internal/domain"
 )
 
 type AdminHandler struct {

@@ -3,7 +3,7 @@ package postgres
 import (
 	"database/sql"
 	"errors"
-	"telemed/internal/domain"
+	"medlink/internal/domain"
 )
 
 type authRepo struct {

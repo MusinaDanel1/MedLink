@@ -2,12 +2,9 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
-	"math/rand"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -15,11 +12,11 @@ import (
 	_ "github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 
-	http1 "telemed/internal/delivery/http"
-	"telemed/internal/delivery/telegram"
-	"telemed/internal/delivery/video"
-	"telemed/internal/repository/postgres"
-	"telemed/internal/usecase"
+	http1 "medlink/internal/delivery/http"
+	"medlink/internal/delivery/telegram"
+	"medlink/internal/delivery/video"
+	"medlink/internal/repository/postgres"
+	"medlink/internal/usecase"
 )
 
 func main() {
@@ -47,111 +44,97 @@ func main() {
 	}
 	defer db.Close()
 	// --- BEGIN New User Seeding Logic ---
-	log.Println("Starting new user seeding...")
 
-	// Seed math/rand for password generation (crypto/rand is better for production)
-	// Using math/rand for simplicity as per typical mock data generation context
-	// For crypto/rand, no seeding is needed.
-	// For this exercise, let's assume math/rand is chosen for simplicity.
-	// rand.Seed(time.Now().UnixNano()) // Usually done once, but if main is re-run, ensure it's effective.
+	// New Doctor User Seeding
+	log.Println("Seeding doctor users with specific IINs and passwords...")
 
-	// Helper function to generate random alphanumeric password
-	randAlphanum := func(length int) string {
-		const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-		seededRand := rand.New(rand.NewSource(time.Now().UnixNano())) // Ensure new seed each call for variety in quick succession
-		b := make([]byte, length)
-		for i := range b {
-			b[i] = charset[seededRand.Intn(len(charset))]
-		}
-		return string(b)
+	type doctorSeed struct {
+		FullName string
+		IIN      string
+		Password string
 	}
 
-	// Doctor User Seeding
-	// Note: The original list had 17 names. The request was for 16 *new* doctor users.
-	// "Марина Цветаева" and "Айгуль Омарова", "Жанат Мусаев" are already in the doctors table from init.sql.
-	// This seeding focuses on creating *user accounts* for doctors.
-	// The provided list includes names already in the doctors table.
-	// The logic below will attempt to create user accounts for all these names,
-	// using ON CONFLICT for IINs.
-	allDoctorNamesForUserSeeding := []string{
-		"Марина Цветаева",
-		"Айгуль Омарова",
-		"Жанат Мусаев",
-		"Алексей Смирнов",
-		"Гаухар Сагынова",
-		"Игорь Брагин",
-		"Наталья Ким",
-		"Бахытжан Ермеков",
-		"Ольга Соколова",
-		"Мурат Бейсеков",
-		"Елена Жумагалиева",
-		"Руслан Тлеулин",
+	doctors := []doctorSeed{
+		{"Марина Цветаева", "870102300001", "cvetaeva123"},
+		{"Айгуль Омарова", "860315400002", "omarova123"},
+		{"Жанат Мусаев", "850610500003", "musaev123"},
+		{"Алексей Смирнов", "840920600004", "smirnov123"},
+		{"Гаухар Сагынова", "830207700005", "sagynova123"},
+		{"Игорь Брагин", "820813800006", "bragin123"},
+		{"Наталья Ким", "811225900007", "kim123"},
+		{"Бахытжан Ермеков", "800501000008", "ermekov123"},
+		{"Ольга Соколова", "790310100009", "sokolova123"},
+		{"Мурат Бейсеков", "780624200010", "beisekov123"},
+		{"Елена Жумагалиева", "770809300011", "zhumagalieva123"},
+		{"Руслан Тлеулин", "760430400012", "tleulin123"},
 	}
 
-	// Start IINs for new users from a different range to avoid conflicts with manually specified ones.
-	var iinCounter int64 = 100000000000 // Starting IIN for newly generated ones
+	insertQuery := `
+	INSERT INTO users (iin, password_hash, full_name, role)
+	VALUES ($1, $2, $3, $4)
+	ON CONFLICT (iin) DO NOTHING
+`
 
-	userInsertQuery := `INSERT INTO users (iin, password_hash, full_name, role) 
-	                    VALUES ($1, $2, $3, $4)
-	                    ON CONFLICT (iin) DO NOTHING`
-
-	log.Println("Seeding new doctor users...")
-	for _, name := range allDoctorNamesForUserSeeding {
-		// Handle specific known IINs first
-		currentIIN := fmt.Sprintf("%012d", iinCounter)
-		iinCounter++
-
-		newPassword := randAlphanum(12) // Generate a random password
-		newHashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	for _, doc := range doctors {
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(doc.Password), bcrypt.DefaultCost)
 		if err != nil {
-			log.Printf("Error hashing password for doctor %s: %v", name, err)
+			log.Printf("Error hashing password for %s: %v", doc.FullName, err)
 			continue
 		}
 
-		result, err := db.Exec(userInsertQuery, currentIIN, string(newHashedPassword), name, "doctor")
+		result, err := db.Exec(insertQuery, doc.IIN, string(hashedPassword), doc.FullName, "doctor")
 		if err != nil {
-			log.Printf("Error inserting/verifying doctor user %s (IIN: %s): %v", name, currentIIN, err)
+			log.Printf("Error inserting doctor user %s (IIN: %s): %v", doc.FullName, doc.IIN, err)
+			continue
+		}
+
+		rows, _ := result.RowsAffected()
+		if rows > 0 {
+			log.Printf("✅ CREATED: %s | IIN: %s | Password: %s", doc.FullName, doc.IIN, doc.Password)
 		} else {
-			affected, _ := result.RowsAffected()
-			if affected > 0 {
-				log.Printf("CREATED Doctor User - IIN: %s, Name: %s, Password: %s", currentIIN, name, newPassword)
-			}
-			log.Printf("User entry for doctor %s (IIN: %s) processed.", name, currentIIN)
+			log.Printf("ℹ️ Skipped (already exists): %s | IIN: %s", doc.FullName, doc.IIN)
 		}
 	}
 
 	// New Admin User Seeding
-	log.Println("Seeding new admin users...")
-	adminFirstNames := []string{"Бауржан", "Айдын", "Санжар", "Ермек", "Нурлан", "Динара", "Алия", "Гаухар"}
-	adminLastNames := []string{"Ибраев", "Смагулов", "Касенов", "Ахметова", "Жуманова", "Ким", "Ли", "Сергеев"}
+	log.Println("Seeding admin users with specific IINs and passwords...")
 
-	for i := 0; i < 3; i++ { // Loop 3 times for 3 admins
-		// Ensure we have enough names, or handle gracefully if not
-		if i >= len(adminFirstNames) || i >= len(adminLastNames) {
-			log.Printf("Warning: Not enough unique names in predefined lists to create admin user %d. Skipping.", i+1)
+	type adminSeed struct {
+		FullName string
+		IIN      string
+		Password string
+	}
+
+	admins := []adminSeed{
+		{"Асель Нурмагамбетова", "890215350013", "aseladmin123"},
+		{"Тимур Садыков", "870908460014", "timuradmin123"},
+		{"Дарья Белова", "860124570015", "daryaadmin123"},
+	}
+
+	insertAdminQuery := `
+	INSERT INTO users (iin, password_hash, full_name, role)
+	VALUES ($1, $2, $3, 'admin')
+	ON CONFLICT (iin) DO NOTHING
+`
+
+	for _, admin := range admins {
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(admin.Password), bcrypt.DefaultCost)
+		if err != nil {
+			log.Printf("Error hashing password for admin %s: %v", admin.FullName, err)
 			continue
 		}
-		adminFullName := fmt.Sprintf("%s %s", adminFirstNames[i], adminLastNames[i])
 
-		newIIN := fmt.Sprintf("%012d", iinCounter) // Continue IIN sequence
-		iinCounter++
-
-		newPassword := randAlphanum(12)
-		newHashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+		result, err := db.Exec(insertAdminQuery, admin.IIN, string(hashedPassword), admin.FullName)
 		if err != nil {
-			log.Printf("Error hashing password for admin %s: %v", adminFullName, err)
+			log.Printf("Error inserting admin user %s (IIN: %s): %v", admin.FullName, admin.IIN, err)
 			continue
 		}
 
-		result, err := db.Exec(userInsertQuery, newIIN, string(newHashedPassword), adminFullName, "admin")
-		if err != nil {
-			log.Printf("Error inserting admin user %s (IIN: %s): %v", adminFullName, newIIN, err)
+		rows, _ := result.RowsAffected()
+		if rows > 0 {
+			log.Printf("✅ CREATED Admin: %s | IIN: %s | Password: %s", admin.FullName, admin.IIN, admin.Password)
 		} else {
-			affected, _ := result.RowsAffected()
-			if affected > 0 {
-				log.Printf("CREATED Admin User - IIN: %s, Name: %s, Password: %s", newIIN, adminFullName, newPassword)
-			}
-			log.Printf("Admin user %s (IIN: %s) processed.", adminFullName, newIIN)
+			log.Printf("ℹ️ Skipped (already exists): %s | IIN: %s", admin.FullName, admin.IIN)
 		}
 	}
 

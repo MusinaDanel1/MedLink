@@ -1,12 +1,12 @@
 package http
 
 import (
+	"medlink/internal/domain"
 	"strconv"
-	"telemed/internal/domain"
 
 	"github.com/gin-gonic/gin"
 
-	msgUC "telemed/internal/usecase"
+	msgUC "medlink/internal/usecase"
 )
 
 type MessageHandler struct {

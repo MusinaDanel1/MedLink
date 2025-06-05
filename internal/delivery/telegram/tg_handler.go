@@ -3,8 +3,8 @@ package telegram
 import (
 	"fmt"
 	"log"
+	"medlink/internal/usecase"
 	"os"
-	"telemed/internal/usecase"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -239,7 +239,7 @@ func (h *BotHandler) sendVideoLink(chatID int64, apptID int) {
 	lang := h.getUserLanguage(chatID)
 	baseURL := os.Getenv("BASE_URL")
 	if baseURL == "" {
-		baseURL = "https://telemed-76fw.onrender.com"
+		baseURL = "https://medlink-76fw.onrender.com"
 	}
 
 	videoURL := fmt.Sprintf("%s/webrtc/room.html?appointment_id=%d&role=patient",

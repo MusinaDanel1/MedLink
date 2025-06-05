@@ -8,13 +8,13 @@ RUN go mod download
 COPY . .
 
 # Сборка бинарного файла приложения
-RUN CGO_ENABLED=0 GOOS=linux go build -o telemed ./cmd
+RUN CGO_ENABLED=0 GOOS=linux go build -o medlink ./cmd
 
 FROM alpine:latest
 WORKDIR /root/
 
 # Копируем собранное приложение
-COPY --from=builder /app/telemed .
+COPY --from=builder /app/medlink .
 
 
 # Копируем шаблоны
@@ -27,4 +27,4 @@ COPY --from=builder /app/templates/static /root/static
 
 EXPOSE 8080
 
-CMD ["./telemed"]
+CMD ["./medlink"]

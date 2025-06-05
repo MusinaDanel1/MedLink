@@ -2,7 +2,7 @@ package usecase
 
 import (
 	"fmt"
-	"telemed/internal/domain"
+	"medlink/internal/domain"
 	"time"
 )
 

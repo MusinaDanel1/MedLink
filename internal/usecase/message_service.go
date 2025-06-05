@@ -1,6 +1,6 @@
 package usecase
 
-import "telemed/internal/domain"
+import "medlink/internal/domain"
 
 type MessageService struct {
 	repo domain.MessageRepository

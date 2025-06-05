@@ -2,10 +2,10 @@ package telegram
 
 import (
 	"log"
+	"medlink/internal/usecase"
 	"sort"
 	"strconv"
 	"strings"
-	"telemed/internal/usecase"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"

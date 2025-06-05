@@ -1,6 +1,6 @@
 package usecase
 
-import "telemed/internal/domain"
+import "medlink/internal/domain"
 
 type DoctorService struct {
 	repo domain.DoctorRepository

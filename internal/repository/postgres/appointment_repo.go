@@ -3,8 +3,8 @@ package postgres
 import (
 	"database/sql"
 	"log"
+	"medlink/internal/domain"
 	"strings"
-	"telemed/internal/domain"
 	"time"
 
 	"github.com/lib/pq"

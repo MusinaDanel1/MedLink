@@ -1,4 +1,4 @@
-module telemed
+module medlink
 
 go 1.23.0
 

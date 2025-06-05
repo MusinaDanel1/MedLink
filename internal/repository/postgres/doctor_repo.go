@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"telemed/internal/domain"
+	"medlink/internal/domain"
 )
 
 type DoctorRepository struct {

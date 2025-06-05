@@ -7,7 +7,7 @@ import (
 
 	"github.com/jung-kurt/gofpdf"
 
-	"telemed/internal/domain"
+	"medlink/internal/domain"
 )
 
 // Generator handles PDF document creation

@@ -3,31 +3,31 @@ version: '3.9'
 services:
   postgres:
     image: postgres:14
-    container_name: telemed-postgres
+    container_name: medlink-postgres
     restart: always
     environment:
-      POSTGRES_USER: telemed_user
+      POSTGRES_USER: medlink_user
       POSTGRES_PASSWORD: secret_password
-      POSTGRES_DB: telemed_db
+      POSTGRES_DB: medlink_db
     ports:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U telemed_user -d telemed_db"]
+      test: ["CMD-SHELL", "pg_isready -U medlink_user -d medlink_db"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   app:
     build: .
-    container_name: telemed-app
+    container_name: medlink-app
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      - DATABASE_URL=postgres://telemed_user:secret_password@postgres:5432/telemed_db?sslmode=disable
+      - DATABASE_URL=postgres://medlink_user:secret_password@postgres:5432/medlink_db?sslmode=disable
       - JWT_SECRET=your_secure_jwt_secret_key_change_this_in_production
       - TURN_USERNAME=47151ac2891d3c7c94c93235
       - TURN_PASSWORD=SzrCSFOALGQJO+da

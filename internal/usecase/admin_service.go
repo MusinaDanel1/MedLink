@@ -2,7 +2,7 @@ package usecase
 
 import (
 	"errors"
-	"telemed/internal/domain"
+	"medlink/internal/domain"
 
 	"golang.org/x/crypto/bcrypt"
 )

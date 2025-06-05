@@ -2,9 +2,9 @@ package http
 
 import (
 	"log"
+	"medlink/internal/domain"
+	"medlink/internal/usecase"
 	"strconv"
-	"telemed/internal/domain"
-	"telemed/internal/usecase"
 
 	"github.com/gin-gonic/gin"
 )

@@ -2,7 +2,7 @@ package postgres
 
 import (
 	"database/sql"
-	"telemed/internal/domain"
+	"medlink/internal/domain"
 )
 
 type PatientRepository struct {
