@@ -181,8 +181,8 @@ function updatePatientInfoUI() {
   // Hide sidebar for patient, show only chat
   if (role === 'patient') {
     if (sidebar) sidebar.style.display = 'none';
-    if (chatPanel) chatPanel.style.display = 'flex';
-    if (toggleChatBtn) toggleChatBtn.style.display = 'none';
+    if (chatPanel) chatPanel.style.display = 'none';
+    if (toggleChatBtn) toggleChatBtn.style.display = 'inline-flex';
   } else {
     // Doctor: show sidebar, hide chat by default
     if (sidebar) sidebar.style.display = 'flex';
@@ -196,12 +196,16 @@ function updatePatientInfoUI() {
     if (chatPanel.style.display === 'none') {
       // Show chat, hide sidebar
       chatPanel.style.display = 'flex';
-      sidebar.style.display = 'none';
+      if (role == 'doctor') {
+        sidebar.style.display = 'none';
+      }
       loadChat();
     } else {
       // Hide chat, show sidebar
       chatPanel.style.display = 'none';
-      sidebar.style.display = 'block';
+      if (role == 'doctor'){
+        sidebar.style.display = 'block';
+      }
     }
   };
 
@@ -209,7 +213,9 @@ function updatePatientInfoUI() {
   closeChatBtn.onclick = () => {
     console.log('Close chat clicked');
     chatPanel.style.display = 'none';
-    sidebar.style.display = 'block';
+    if (role == 'doctor') {
+      sidebar.style.display = 'block';
+    }
   };
 
   // ===== WebRTC setup =====
