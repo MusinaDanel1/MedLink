@@ -481,7 +481,12 @@ body {
     width: 120px;
     height: 90px;
   }
-
+  body.patient-view .local {
+    bottom: 140px;
+    right: 16px;
+    width: 180px; /* увеличенное окно */
+    height: 135px;
+  }
   .controls {
     bottom: 20px;
     gap: 12px;
@@ -490,9 +495,9 @@ body {
 
   /* Если интерфейс для пациента, то для удобства увеличиваем кнопки */
   body.patient-view .controls button {
-    width: 64px;
-    height: 64px;
-    font-size: 28px;
+    width: 80px;
+    height: 80px;
+    font-size: 32px;
   }
 
   .chat-input {
@@ -507,8 +512,8 @@ body {
 
 @media (max-width: 480px) {
   .local {
-    width: 100px;
-    height: 75px;
+    width: 160px;
+    height: 120px;
     bottom: 120px;
     right: 12px;
   }
@@ -520,9 +525,9 @@ body {
 
   /* Для пациентов на маленьких экранах – пусть кнопки остаются удобными */
   body.patient-view .controls button {
-    width: 64px;
-    height: 64px;
-    font-size: 28px;
+    width: 80px;
+    height: 80px;
+    font-size: 32px;
   }
 
   .chat-header {
