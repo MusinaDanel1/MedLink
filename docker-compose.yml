@@ -28,7 +28,7 @@ services:
         condition: service_healthy
     environment:
       - DATABASE_URL=postgres://medlink_user:secret_password@postgres:5432/medlink_db?sslmode=disable
-      - JWT_SECRET=your_secure_jwt_secret_key_change_this_in_production
+      - JWT_SECRET=Z#pX7w@9VcT1Lu!qEb6NfYRm4HsKjAo3
       - TURN_USERNAME=47151ac2891d3c7c94c93235
       - TURN_PASSWORD=SzrCSFOALGQJO+da
     ports:
