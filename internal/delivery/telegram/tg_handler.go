@@ -239,7 +239,7 @@ func (h *BotHandler) sendVideoLink(chatID int64, apptID int) {
 	lang := h.getUserLanguage(chatID)
 	baseURL := os.Getenv("BASE_URL")
 	if baseURL == "" {
-		baseURL = "https://medlink-76fw.onrender.com"
+		baseURL = "https://medlink-k5ia.onrender.com"
 	}
 
 	videoURL := fmt.Sprintf("%s/webrtc/room.html?appointment_id=%d&role=patient",
